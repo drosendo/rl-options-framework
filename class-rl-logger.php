@@ -1,0 +1,128 @@
+<?php
+/**
+ * RL Logger - Centralized logging utility for RL Options Framework
+ *
+ * @package RL_Options_Framework
+ */
+
+if ( ! defined( 'ABSPATH' ) ) {
+	return;
+}
+
+/**
+ * Generic logging utility class with enable/disable capability.
+ */
+final class RL_Logger {
+	/**
+	 * Current minimum log level.
+	 * Supported: error, warn, info, debug
+	 *
+	 * @var string
+	 */
+	private static string $level = 'error';
+
+	/**
+	 * Log prefix for identifying framework logs.
+	 *
+	 * @var string
+	 */
+	private static string $prefix = '[RL Framework]';
+
+	private const LEVEL_MAP = [
+		'error' => 0,
+		'warn'  => 1,
+		'info'  => 2,
+		'debug' => 3,
+	];
+
+	/**
+	 * Set minimum log level.
+	 */
+	public static function set_level( string $level ): void {
+		$level = strtolower( trim( $level ) );
+		if ( ! isset( self::LEVEL_MAP[ $level ] ) ) {
+			$level = 'error';
+		}
+
+		self::$level = $level;
+	}
+
+	public static function get_level(): string {
+		return self::$level;
+	}
+
+	private static function should_log( string $level ): bool {
+		$current = self::LEVEL_MAP[ self::$level ] ?? self::LEVEL_MAP['error'];
+		$target  = self::LEVEL_MAP[ $level ] ?? self::LEVEL_MAP['error'];
+
+		return $target <= $current;
+	}
+
+	private static function build_message( string $level, string $message, array $context ): string {
+		$formatted_message = self::$prefix . ' [' . strtoupper( $level ) . '] ' . $message;
+
+		if ( ! empty( $context ) ) {
+			foreach ( $context as $item ) {
+				if ( is_array( $item ) || is_object( $item ) ) {
+					$formatted_message .= ' ' . print_r( $item, true );
+				} else {
+					$formatted_message .= ' ' . $item;
+				}
+			}
+		}
+
+		return $formatted_message;
+	}
+
+	private static function write( string $level, string $message, ...$context ): void {
+		if ( ! self::should_log( $level ) ) {
+			return;
+		}
+
+		error_log( self::build_message( $level, $message, $context ) );
+	}
+
+	/**
+	 * Backward-compatible alias for debug logs.
+	 */
+	public static function log( string $message, ...$context ): void {
+		self::debug( $message, ...$context );
+	}
+
+	public static function debug( string $message, ...$context ): void {
+		self::write( 'debug', $message, ...$context );
+	}
+
+	public static function info( string $message, ...$context ): void {
+		self::write( 'info', $message, ...$context );
+	}
+
+	public static function warn( string $message, ...$context ): void {
+		self::write( 'warn', $message, ...$context );
+	}
+
+	/**
+	 * Log an error message (always logged, even if debug is disabled).
+	 *
+	 * @param string $message Message to log.
+	 * @param mixed  ...$context Additional context variables.
+	 */
+	public static function error( string $message, ...$context ): void {
+		self::write( 'error', $message, ...$context );
+	}
+
+	/**
+	 * Legacy helpers kept for compatibility.
+	 */
+	public static function enable(): void {
+		self::set_level( 'debug' );
+	}
+
+	public static function disable(): void {
+		self::set_level( 'error' );
+	}
+
+	public static function is_enabled(): bool {
+		return self::$level !== 'error';
+	}
+}

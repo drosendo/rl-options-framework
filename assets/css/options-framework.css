@@ -442,6 +442,96 @@
 
 .rl-options-page .rl-datetime-field .rl-datetime-time {
 	min-width: 120px;
+
+/* ─── jQuery UI Datepicker popup ────────────────────────────────────────────
+   Self-contained — no image dependencies. Uses WP admin colour palette.
+   Loaded only on the RL Options page (enqueue_assets is page-gated).
+   ────────────────────────────────────────────────────────────────────────── */
+.ui-datepicker {
+	background: #fff;
+	border: 1px solid #c3c4c7;
+	border-radius: 4px;
+	box-shadow: 0 4px 12px rgba(0,0,0,.15);
+	font-size: 13px;
+	padding: 8px;
+	width: 232px;
+	z-index: 99999 !important;
+}
+.ui-datepicker-header {
+	background: #2271b1;
+	border-radius: 3px;
+	color: #fff;
+	font-weight: 600;
+	margin-bottom: 6px;
+	padding: 6px 8px;
+	position: relative;
+	text-align: center;
+}
+.ui-datepicker-prev,
+.ui-datepicker-next {
+	border-radius: 2px;
+	color: #fff;
+	cursor: pointer;
+	font-size: 14px;
+	padding: 0 5px;
+	position: absolute;
+	top: 5px;
+	user-select: none;
+}
+.ui-datepicker-prev { left: 4px; }
+.ui-datepicker-next { right: 4px; }
+.ui-datepicker-prev:hover,
+.ui-datepicker-next:hover { background: rgba(255,255,255,.2); }
+/* Hide jQuery UI generated icon spans; use CSS content instead */
+.ui-datepicker-prev span,
+.ui-datepicker-next span { display: none; }
+.ui-datepicker-prev::after { content: '\2039'; }
+.ui-datepicker-next::after { content: '\203A'; }
+.ui-datepicker-title { display: inline; }
+.ui-datepicker select.ui-datepicker-month,
+.ui-datepicker select.ui-datepicker-year {
+	background: rgba(255,255,255,.2);
+	border: 1px solid rgba(255,255,255,.4);
+	border-radius: 2px;
+	color: #fff;
+	font-size: 12px;
+	margin: 0 2px;
+	padding: 1px 3px;
+}
+.ui-datepicker table {
+	border-collapse: collapse;
+	width: 100%;
+}
+.ui-datepicker th {
+	color: #646970;
+	font-size: 11px;
+	font-weight: 600;
+	padding: 4px 2px;
+	text-align: center;
+}
+.ui-datepicker td { padding: 1px; }
+.ui-datepicker td a,
+.ui-datepicker td span {
+	border-radius: 3px;
+	color: #1d2327;
+	display: block;
+	font-size: 12px;
+	padding: 4px 3px;
+	text-align: center;
+	text-decoration: none;
+}
+.ui-datepicker td a:hover { background: #f0f6fc; color: #2271b1; }
+.ui-datepicker .ui-datepicker-today a {
+	background: #f6f7f7;
+	font-weight: 700;
+}
+.ui-datepicker .ui-datepicker-current-day a {
+	background: #2271b1;
+	color: #fff;
+}
+.ui-datepicker .ui-datepicker-current-day a:hover { background: #135e96; }
+.ui-datepicker .ui-state-disabled span { color: #c3c4c7; }
+.ui-datepicker-buttonpane { margin-top: 6px; text-align: right; }
 }
 
 .rl-options-page .rl-accordion-toggle {

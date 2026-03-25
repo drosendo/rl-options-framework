@@ -360,17 +360,6 @@ final class RL_Options_Framework
 			$this->config['version']
 		);
 
-		// jQuery UI theme CSS — required for datepicker calendar popup visibility.
-		$jquery_ui_css_url = $use_local_assets
-			? $this->assets_url . 'vendor/jquery-ui/jquery-ui.min.css'
-			: 'https://code.jquery.com/ui/1.13.3/themes/smoothness/jquery-ui.min.css';
-		wp_enqueue_style(
-			'jquery-ui-datepicker-style',
-			$jquery_ui_css_url,
-			[],
-			'1.13.3'
-		);
-
 		$sweetalert_css_url = $use_local_assets
 			? $this->assets_url . 'vendor/sweetalert2/sweetalert2.min.css'
 			: 'https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css';
@@ -406,6 +395,7 @@ final class RL_Options_Framework
 
 		wp_enqueue_script('wp-color-picker');
 		wp_enqueue_script('jquery-ui-datepicker');
+		wp_localize_jquery_ui_datepicker(); // i18n: locale-aware month/day names
 		wp_enqueue_script(
 			'sweetalert2',
 			$sweetalert_js_url,

@@ -361,9 +361,12 @@ final class RL_Options_Framework
 		);
 
 		// jQuery UI theme CSS — required for datepicker calendar popup visibility.
+		$jquery_ui_css_url = $use_local_assets
+			? $this->assets_url . 'vendor/jquery-ui/jquery-ui.min.css'
+			: 'https://code.jquery.com/ui/1.13.3/themes/smoothness/jquery-ui.min.css';
 		wp_enqueue_style(
 			'jquery-ui-datepicker-style',
-			includes_url('css/jquery-ui-fresh.css'),
+			$jquery_ui_css_url,
 			[],
 			'1.13.3'
 		);
@@ -1663,8 +1666,8 @@ final class RL_Options_Framework
 				'id'       => $local_assets_field,
 				'type'     => 'toggle',
 				'label'    => __( 'Use Local Assets', $td ),
-				'text'     => __( 'Load libraries locally (GDPR compliant)', $td ),
-				'desc'     => __( 'When enabled, third-party frontend libraries are served from your server instead of CDN providers, improving privacy and GDPR compliance.', $td ),
+				'text'     => __( 'Load options framework libraries locally (GDPR compliant)', $td ),
+				'desc'     => __( 'Controls how the RL Options Framework loads its own UI libraries (SweetAlert2, Tippy.js, jQuery UI theme). When enabled, these are served from your server. When disabled, they are loaded from public CDNs. This setting does not affect any other plugin assets.', $td ),
 				'default'  => true,
 				'priority' => 20,
 			];

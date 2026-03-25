@@ -71,10 +71,77 @@ Notes:
 
 ## 4. Field Type Contract
 
-- `image`: WordPress media uploader (single URL value).
-- `image_select`: radio-like selector with image options.
+| Type | Saved value | Notes |
+|------|-------------|-------|
+| `toggle` | `bool` | On/off switch |
+| `checkbox` | `bool` | Single checkbox with `text` label |
+| `select` | `string` | Requires `options` map |
+| `multiselect` | `string[]` | Checkboxes, requires `options` map |
+| `radio` | `string` | Requires `options` map |
+| `image_select` | `string` | Each option: `['src' => '...', 'label' => '...']` |
+| `text` | `string` | Standard text input |
+| `textarea` | `string` | Multi-line, `rows` optional |
+| `number` | `int\|float` | Use `min`, `max`, `step`; optional `suffix` |
+| `color` | `string` (hex) | WP Color Picker; default must be valid hex |
+| `image` | `string` (URL) | WP media uploader (single image) |
+| `datetime` | `string` (`Y-m-d H:i`) | Calendar + time picker — see §4a |
+| `html` | — | Read-only HTML block; use `html` key |
 
-`image_select` expects options shaped like:
+### §4a — `datetime` field
+
+Renders a WordPress **jQuery UI datepicker** calendar alongside a native `<input type="time">`. The canonical saved value is a single string in `Y-m-d H:i` format.
+
+```php
+'fields' => [
+    'launch_at' => [
+        'id'          => 'launch_at',
+        'type'        => 'datetime',
+        'label'       => __( 'Launch Date & Time', 'my-plugin' ),
+        'description' => __( 'Date the feature becomes active.', 'my-plugin' ),
+        'default'     => '2026-01-01 09:00',  // Y-m-d H:i
+        'required'    => false,
+        'time_step'   => 900,               // seconds between time options (default 60)
+    ],
+],
+```
+
+**Reading the saved value:**
+
+```php
+$raw = get_option('my_project_options')['launch_at'] ?? '';
+
+if ( $raw !== '' ) {
+    $timestamp = strtotime( $raw );              // Unix timestamp
+    $display   = date_i18n( get_option('date_format') . ' ' . get_option('time_format'), $timestamp );
+}
+```
+
+**Field options:**
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `default` | `string` | `''` | Pre-fill value in `Y-m-d H:i` format |
+| `required` | `bool` | `false` | Blocks save when empty |
+| `time_step` | `int` | `60` | Browser time-picker increment in seconds (min 60) |
+| `placeholder` | `string` | `'Select date'` | Visible hint in the date input |
+
+**Validation rules:**
+
+- If `required => true` and value is empty → validation error.
+- If a value is present it must match `Y-m-d H:i` and be a valid calendar date.
+
+**Sanitization:**
+
+- Non-empty values are round-tripped through `strtotime()` and re-formatted as `Y-m-d H:i`.
+- Empty string is stored as-is (allows clearing an optional field).
+- Invalid values fall back to the field `default` when one is provided, otherwise `''`.
+
+**Dependencies added automatically when the settings page loads:**
+
+- `jquery-ui-datepicker` (bundled with WordPress)
+- `wp-color-picker` was already enqueued
+
+### §4b — `image_select` schema
 
 ```php
 'options' => [

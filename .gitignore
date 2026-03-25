@@ -1,0 +1,4 @@
+# AI agent / IDE customization files — local use only, not part of the library
+.github/
+tasks/
+.history/

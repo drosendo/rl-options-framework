@@ -68,6 +68,7 @@ Notes:
 
 - If `register_menu` is `false`, host code must create its own menu/submenu and point callback to `$framework->render_page()`.
 - If `assets_url` is set, it has highest priority. Otherwise framework resolves URL by context.
+- `use_local_assets_toggle` only affects RL Options Framework UI libraries (SweetAlert2, Tippy). It does not change assets from other plugins/themes.
 
 ## 4. Field Type Contract
 
@@ -139,7 +140,9 @@ if ( $raw !== '' ) {
 **Dependencies added automatically when the settings page loads:**
 
 - `jquery-ui-datepicker` (bundled with WordPress)
+- `wp_localize_jquery_ui_datepicker()` is called for locale-aware month/day names and date strings
 - `wp-color-picker` was already enqueued
+- Datepicker popup visuals are provided by framework CSS (self-contained, no image sprite dependency)
 
 ### §4b — `image_select` schema
 

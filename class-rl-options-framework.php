@@ -204,6 +204,13 @@ final class RL_Options_Framework
 	private ?RL_Options_Schema_Manager $schema_manager = null;
 
 	/**
+	 * REST API service instance for geo data and REST route management.
+	 *
+	 * @var RL_Options_Rest_Api|null
+	 */
+	private ?RL_Options_Rest_Api $rest_api = null;
+
+	/**
 	 * Constructor.
 	 *
 	 * @param array $config Framework configuration.
@@ -298,6 +305,9 @@ final class RL_Options_Framework
 		// Initialize schema manager service for schema building and management.
 		$this->schema_manager = new RL_Options_Schema_Manager($this);
 
+		// Initialize REST API service for geo data and REST route registration.
+		$this->rest_api = new RL_Options_Rest_Api($this);
+
 		// Register admin menu unless host project opts to fully control menu wiring.
 		if (!empty($this->config['register_menu'])) {
 			add_action('admin_menu', [$this, 'register_menu'], 60);
@@ -308,11 +318,10 @@ final class RL_Options_Framework
 		add_action('wp_ajax_' . $this->config['ajax_action'], [$this, 'handle_ajax_save']);
 		add_action('wp_ajax_rl_options_framework_field_options', [$this, 'handle_ajax_field_options']);
 		add_action('wp_ajax_rl_options_framework_field_validate', [$this, 'handle_ajax_field_validate']);
-		add_action('rest_api_init', [$this, 'register_rest_routes']);
 		add_action('admin_notices', [$this, 'render_notices']);
 
-		// Auto-register REST routes on early init for theme/plugin contexts that call init before rest_api_init
-		$this->maybe_auto_register_rest_routes();
+		// Register REST routes and handle late-boot scenario via service.
+		$this->rest_api->register();
 
 		$this->initialized = true;
 
@@ -325,13 +334,11 @@ final class RL_Options_Framework
 	}
 
 	/**
-	 * Ensure routes are available if framework boots after rest_api_init already fired.
+	 * Access REST API service (geo data and route registry).
 	 */
-	private function maybe_auto_register_rest_routes(): void
+	public function rest_api(): ?RL_Options_Rest_Api
 	{
-		if (did_action('rest_api_init') > 0) {
-			$this->register_rest_routes();
-		}
+		return $this->rest_api;
 	}
 
 	/**
@@ -794,79 +801,6 @@ final class RL_Options_Framework
 	}
 
 	/**
-	 * Register reusable country metadata REST endpoints.
-	 */
-	public function register_rest_routes(): void
-	{
-		register_rest_route(
-			'rl-options/v1',
-			'/countries',
-			[
-				'methods' => 'GET',
-				'permission_callback' => '__return_true',
-				'callback' => [$this, 'rest_get_countries'],
-			]
-		);
-
-		register_rest_route(
-			'rl-options/v1',
-			'/countries/(?P<code>[A-Za-z]{2})/subdivisions',
-			[
-				'methods' => 'GET',
-				'permission_callback' => '__return_true',
-				'callback' => [$this, 'rest_get_subdivisions'],
-			]
-		);
-
-		register_rest_route(
-			'rl-options/v1',
-			'/countries/(?P<code>[A-Za-z]{2})/municipalities',
-			[
-				'methods' => 'GET',
-				'permission_callback' => '__return_true',
-				'callback' => [$this, 'rest_get_municipalities'],
-			]
-		);
-	}
-
-	/**
-	 * REST: return normalized countries list.
-	 */
-	public function rest_get_countries(WP_REST_Request $request)
-	{
-		$data = $this->get_country_reference_data();
-		$out = [];
-		foreach ($data as $code => $item) {
-			$out[] = [
-				'code' => (string) $code,
-				'name' => (string) ($item['name'] ?? $code),
-				'region' => (string) ($item['region'] ?? ''),
-				'capital' => (string) ($item['capital'] ?? ''),
-			];
-		}
-		return rest_ensure_response($out);
-	}
-
-	/**
-	 * REST: return subdivisions for a country code.
-	 */
-	public function rest_get_subdivisions(WP_REST_Request $request)
-	{
-		$country = strtoupper(sanitize_key((string) $request->get_param('code')));
-		return rest_ensure_response($this->get_country_subdivisions_data($country));
-	}
-
-	/**
-	 * REST: return municipalities for a country/subdivision.
-	 */
-	public function rest_get_municipalities(WP_REST_Request $request)
-	{
-		$country = strtoupper(sanitize_key((string) $request->get_param('code')));
-		$subdivision = sanitize_text_field((string) $request->get_param('subdivision'));
-		return rest_ensure_response($this->get_country_municipalities_data($country, $subdivision));
-	}
-
-	/**
 	 * Resolve allowed option keys for static and provider-backed fields.
 	 *
 	 * @return string[]
@@ -975,7 +909,7 @@ final class RL_Options_Framework
 
 		switch ($endpoint) {
 			case 'countries':
-				$countries = $this->get_country_reference_data();
+				$countries = $this->rest_api->get_country_reference_data();
 				foreach ($countries as $code => $item) {
 					$options[] = ['value' => (string) $code, 'label' => (string) ($item['name'] ?? $code)];
 				}
@@ -983,12 +917,12 @@ final class RL_Options_Framework
 
 			case 'subdivisions':
 			case 'country_subdivisions':
-				$options = $this->get_country_subdivisions_data($country);
+				$options = $this->rest_api->get_country_subdivisions_data($country);
 				break;
 
 			case 'municipalities':
 			case 'country_municipalities':
-				$options = $this->get_country_municipalities_data($country, $subdivision);
+				$options = $this->rest_api->get_country_municipalities_data($country, $subdivision);
 				break;
 		}
 
@@ -1031,7 +965,7 @@ final class RL_Options_Framework
 		$type = strtolower($type);
 
 		if ($type === 'country') {
-			foreach ($this->get_country_reference_data() as $code => $item) {
+			foreach ($this->rest_api->get_country_reference_data() as $code => $item) {
 				$out[(string) $code] = (string) ($item['name'] ?? $code);
 			}
 			return $out;
@@ -1043,7 +977,7 @@ final class RL_Options_Framework
 		}
 
 		if ($type === 'state') {
-			foreach ($this->get_country_subdivisions_data($country) as $item) {
+			foreach ($this->rest_api->get_country_subdivisions_data($country) as $item) {
 				if (is_array($item) && isset($item['value'])) {
 					$out[(string) $item['value']] = (string) ($item['label'] ?? $item['value']);
 				}
@@ -1059,7 +993,7 @@ final class RL_Options_Framework
 				$subdivision = sanitize_key((string) $state[(string) $field['subdivision_field']]);
 			}
 
-			foreach ($this->get_country_municipalities_data($country, $subdivision) as $item) {
+			foreach ($this->rest_api->get_country_municipalities_data($country, $subdivision) as $item) {
 				if (is_array($item) && isset($item['value'])) {
 					$out[(string) $item['value']] = (string) ($item['label'] ?? $item['value']);
 				}
@@ -1092,11 +1026,13 @@ final class RL_Options_Framework
 	/**
 	 * Normalize options into [{value,label}] transport format.
 	 *
-	 * @param array $options Source options.
-	 * @param array $mapping Optional mapping keys ['value' => '...', 'label' => '...'].
+	 * Public so services (e.g. REST API service) can use it for geo data normalization.
+	 *
+	 * @param array $options Source options (associative or indexed).
+	 * @param array $mapping Optional key mapping ['value' => '...', 'label' => '...'].
 	 * @return array<int,array{value:string,label:string}>
 	 */
-	private function normalize_options_for_transport(array $options, array $mapping = []): array
+	public function normalize_options_for_transport(array $options, array $mapping = []): array
 	{
 		$out = [];
 		$value_key = isset($mapping['value']) ? (string) $mapping['value'] : 'value';
@@ -1132,270 +1068,32 @@ final class RL_Options_Framework
 
 	/**
 	 * Public helper: return countries as [{code,name,region,capital}].
+	 *
+	 * Delegates to REST API service.
 	 */
 	public function get_country_reference_countries(): array
 	{
-		$data = $this->get_country_reference_data();
-		$out = [];
-		foreach ($data as $code => $item) {
-			$out[] = [
-				'code' => (string) $code,
-				'name' => (string) ($item['name'] ?? $code),
-				'region' => (string) ($item['region'] ?? ''),
-				'capital' => (string) ($item['capital'] ?? ''),
-			];
-		}
-		return $out;
+		return $this->rest_api->get_country_reference_countries();
 	}
 
 	/**
 	 * Public helper: return normalized subdivisions options for a country.
+	 *
+	 * Delegates to REST API service.
 	 */
 	public function get_country_subdivisions(string $country_code): array
 	{
-		return $this->get_country_subdivisions_data($country_code);
+		return $this->rest_api->get_country_subdivisions_data($country_code);
 	}
 
 	/**
 	 * Public helper: return normalized municipalities options.
+	 *
+	 * Delegates to REST API service.
 	 */
 	public function get_country_municipalities(string $country_code, string $subdivision = ''): array
 	{
-		return $this->get_country_municipalities_data($country_code, $subdivision);
-	}
-
-	/**
-	 * Retrieve normalized country reference dataset with transient cache.
-	 *
-	 * @return array<string,array>
-	 */
-	private function get_country_reference_data(): array
-	{
-		$cache_key = 'rl_of_country_reference_v1';
-		$cached = get_transient($cache_key);
-		if (is_array($cached) && !empty($cached)) {
-			return $cached;
-		}
-
-		$data = $this->get_default_country_reference_data();
-		$sources = apply_filters(
-			'rl_options_framework_country_reference_sources',
-			[
-				[
-					'id' => 'restcountries',
-					'type' => 'restcountries',
-					'url' => 'https://restcountries.com/v3.1/all?fields=cca2,name,region,capital',
-					'timeout' => 6,
-				],
-			],
-			$this
-		);
-
-		if (is_array($sources)) {
-			foreach ($sources as $source) {
-				if (!is_array($source)) {
-					continue;
-				}
-				$type = strtolower((string) ($source['type'] ?? ''));
-				if ($type === 'restcountries') {
-					$remote = $this->fetch_restcountries_reference_data($source);
-					if (!empty($remote)) {
-						$data = $remote + $data;
-					}
-				}
-			}
-		}
-
-		$data = apply_filters('rl_options_framework_country_reference_data', $data, $sources, $this);
-		if (!is_array($data) || empty($data)) {
-			$data = $this->get_default_country_reference_data();
-		}
-
-		$ttl = max(0, (int) apply_filters('rl_options_framework_country_reference_ttl', 0, $this));
-		if (!empty($data)) {
-			set_transient($cache_key, $data, $ttl);
-		} else {
-			delete_transient($cache_key);
-		}
-		do_action('rl_options_framework_country_reference_warmed', $data, $ttl, $this);
-
-		return $data;
-	}
-
-	/**
-	 * Load reference countries from REST Countries API.
-	 *
-	 * @return array<string,array>
-	 */
-	private function fetch_restcountries_reference_data(array $source): array
-	{
-		$url = isset($source['url']) ? esc_url_raw((string) $source['url']) : '';
-		if ($url === '') {
-			return [];
-		}
-
-		$timeout = max(2, min(12, (int) ($source['timeout'] ?? 6)));
-		$response = wp_remote_get($url, ['timeout' => $timeout]);
-		if (is_wp_error($response)) {
-			return [];
-		}
-
-		if ((int) wp_remote_retrieve_response_code($response) !== 200) {
-			return [];
-		}
-
-		$payload = json_decode((string) wp_remote_retrieve_body($response), true);
-		if (!is_array($payload)) {
-			return [];
-		}
-
-		$out = [];
-		foreach ($payload as $item) {
-			if (!is_array($item)) {
-				continue;
-			}
-			$code = strtoupper(sanitize_key((string) ($item['cca2'] ?? '')));
-			if ($code === '') {
-				continue;
-			}
-			$name = (string) ($item['name']['common'] ?? $code);
-			$region = (string) ($item['region'] ?? '');
-			$capital = '';
-			if (!empty($item['capital']) && is_array($item['capital'])) {
-				$capital = (string) reset($item['capital']);
-			}
-			$out[$code] = [
-				'code' => $code,
-				'name' => $name,
-				'region' => $region,
-				'capital' => $capital,
-			];
-		}
-
-		return $out;
-	}
-
-	/**
-	 * Fallback country dataset.
-	 *
-	 * @return array<string,array>
-	 */
-	private function get_default_country_reference_data(): array
-	{
-		return [
-			'PT' => ['code' => 'PT', 'name' => 'Portugal', 'region' => 'Europe', 'capital' => 'Lisbon'],
-			'ES' => ['code' => 'ES', 'name' => 'Spain', 'region' => 'Europe', 'capital' => 'Madrid'],
-			'FR' => ['code' => 'FR', 'name' => 'France', 'region' => 'Europe', 'capital' => 'Paris'],
-			'DE' => ['code' => 'DE', 'name' => 'Germany', 'region' => 'Europe', 'capital' => 'Berlin'],
-			'IT' => ['code' => 'IT', 'name' => 'Italy', 'region' => 'Europe', 'capital' => 'Rome'],
-			'GB' => ['code' => 'GB', 'name' => 'United Kingdom', 'region' => 'Europe', 'capital' => 'London'],
-			'US' => ['code' => 'US', 'name' => 'United States', 'region' => 'Americas', 'capital' => 'Washington, D.C.'],
-			'BR' => ['code' => 'BR', 'name' => 'Brazil', 'region' => 'Americas', 'capital' => 'Brasilia'],
-			'CA' => ['code' => 'CA', 'name' => 'Canada', 'region' => 'Americas', 'capital' => 'Ottawa'],
-			'AU' => ['code' => 'AU', 'name' => 'Australia', 'region' => 'Oceania', 'capital' => 'Canberra'],
-		];
-	}
-
-	/**
-	 * Return normalized subdivisions list for a country.
-	 *
-	 * @return array<int,array{value:string,label:string}>
-	 */
-	private function get_country_subdivisions_data(string $country_code): array
-	{
-		$country_code = strtoupper(sanitize_key($country_code));
-		if ($country_code === '') {
-			return [];
-		}
-
-		$cache_key = 'rl_of_subdivisions_' . strtolower($country_code);
-		$cached = get_transient($cache_key);
-		if (is_array($cached) && !empty($cached)) {
-			return $cached;
-		}
-
-		$defaults = [
-			'PT' => [
-				['value' => 'aveiro', 'label' => 'Aveiro'],
-				['value' => 'braga', 'label' => 'Braga'],
-				['value' => 'coimbra', 'label' => 'Coimbra'],
-				['value' => 'lisboa', 'label' => 'Lisboa'],
-				['value' => 'porto', 'label' => 'Porto'],
-			],
-		];
-
-		$out = $defaults[$country_code] ?? [];
-		$out = apply_filters('rl_options_framework_country_subdivisions', $out, $country_code, $this);
-		$out = $this->normalize_options_for_transport(is_array($out) ? $out : []);
-
-		$ttl = max(0, (int) apply_filters('rl_options_framework_country_reference_ttl', 0, $this));
-		if (!empty($out)) {
-			set_transient($cache_key, $out, $ttl);
-		} else {
-			delete_transient($cache_key);
-		}
-
-		return $out;
-	}
-
-	/**
-	 * Return normalized municipalities list for a country/subdivision.
-	 *
-	 * @return array<int,array{value:string,label:string}>
-	 */
-	private function get_country_municipalities_data(string $country_code, string $subdivision): array
-	{
-		$country_code = strtoupper(sanitize_key($country_code));
-		$subdivision = sanitize_key($subdivision);
-		if ($country_code === '') {
-			return [];
-		}
-
-		$cache_key = 'rl_of_municipalities_' . strtolower($country_code) . '_' . $subdivision;
-		$cached = get_transient($cache_key);
-		if (is_array($cached) && !empty($cached)) {
-			return $cached;
-		}
-
-		$defaults = [
-			'PT' => [
-				'lisboa' => [
-					['value' => 'lisboa', 'label' => 'Lisboa'],
-					['value' => 'sintra', 'label' => 'Sintra'],
-					['value' => 'cascais', 'label' => 'Cascais'],
-				],
-				'porto' => [
-					['value' => 'porto', 'label' => 'Porto'],
-					['value' => 'gaia', 'label' => 'Vila Nova de Gaia'],
-					['value' => 'maia', 'label' => 'Maia'],
-				],
-			],
-		];
-
-		$out = [];
-		if (isset($defaults[$country_code]) && is_array($defaults[$country_code])) {
-			if ($subdivision !== '' && isset($defaults[$country_code][$subdivision])) {
-				$out = $defaults[$country_code][$subdivision];
-			} elseif ($subdivision === '') {
-				foreach ($defaults[$country_code] as $items) {
-					if (is_array($items)) {
-						$out = array_merge($out, $items);
-					}
-				}
-			}
-		}
-
-		$out = apply_filters('rl_options_framework_country_municipalities', $out, $country_code, $subdivision, $this);
-		$out = $this->normalize_options_for_transport(is_array($out) ? $out : []);
-
-		$ttl = max(0, (int) apply_filters('rl_options_framework_country_reference_ttl', 0, $this));
-		if (!empty($out)) {
-			set_transient($cache_key, $out, $ttl);
-		} else {
-			delete_transient($cache_key);
-		}
-
-		return $out;
+		return $this->rest_api->get_country_municipalities_data($country_code, $subdivision);
 	}
 
 	/**

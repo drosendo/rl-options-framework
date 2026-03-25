@@ -104,6 +104,7 @@ Framework fields now follow an ACF-style architecture:
 - Registry/dispatcher: renderers are resolved through [fields/class-rl-field-registry.php](fields/class-rl-field-registry.php).
 - Bootstrap loader: built-in renderers are registered in [fields/class-rl-field-bootstrap.php](fields/class-rl-field-bootstrap.php).
 - Backward compatible: unknown types still fall back to legacy rendering path.
+- Service-based core: the orchestration layer delegates to 4 independent services (Render, Admin Handler, Schema Manager, REST API). See [Section 11](#11-internal-service-architecture).
 
 This makes field maintenance and additions safer than editing a single large switch statement.
 
@@ -475,7 +476,7 @@ If `pattern` is provided without regex delimiters, framework wraps it as anchore
 
 ### What it is
 
-Global geo reference service with normalized outputs for framework and external consumers.
+Global geo reference service (`RL_Options_Rest_Api`) with normalized outputs for framework and external consumers. Logic lives in `services/class-rl-options-rest-api.php`. The framework exposes proxy methods for backward compatibility.
 
 ### Data model keys
 
@@ -555,7 +556,72 @@ rl_options_framework_get_country_municipalities('PT', 'lisboa');
 
 ---
 
-## 11. Migration Notes
+## 11. Internal Service Architecture
+
+### What it is
+
+The framework core (`class-rl-options-framework.php`) is an orchestration layer. All feature domains are delegated to dedicated service classes under `services/`.
+
+### Service map
+
+| Service class | File | Responsibility |
+|---|---|---|
+| `RL_Options_Render_Service` | `services/class-rl-options-render-service.php` | Admin page rendering, field output, tooltip formatting |
+| `RL_Options_Admin_Handler` | `services/class-rl-options-admin-handler.php` | Form save (POST), AJAX save, AJAX field options, AJAX inline validation |
+| `RL_Options_Schema_Manager` | `services/class-rl-options-schema-manager.php` | Tab/section/field normalization, schema building, condition filtering |
+| `RL_Options_Rest_Api` | `services/class-rl-options-rest-api.php` | REST route registration, geo reference data, transient caching |
+
+### Service access
+
+All services are accessible via framework accessor methods after `init()` is called:
+
+```php
+$framework->rest_api();      // RL_Options_Rest_Api
+```
+
+### REST API service — public methods
+
+The `RL_Options_Rest_Api` service exposes geo data methods for use in field providers, custom endpoints, or third-party integrations:
+
+```php
+$rest = $framework->rest_api();
+
+// Countries: [{code, name, region, capital}]
+$countries = $rest->get_country_reference_countries();
+
+// Raw dataset: ['PT' => ['code', 'name', 'region', 'capital'], ...]
+$data = $rest->get_country_reference_data();
+
+// Subdivisions: [{value, label}]
+$states = $rest->get_country_subdivisions_data('PT');
+
+// Municipalities: [{value, label}]
+$cities = $rest->get_country_municipalities_data('PT', 'lisboa');
+```
+
+The same methods are also proxied on the framework instance for backward compatibility:
+
+```php
+$framework->get_country_reference_countries();
+$framework->get_country_subdivisions('PT');
+$framework->get_country_municipalities('PT', 'lisboa');
+```
+
+### normalize_options_for_transport()
+
+This utility method is public on `RL_Options_Framework` so services and custom field renderers can normalize their options into the `[{value, label}]` transport format:
+
+```php
+$options = $framework->normalize_options_for_transport([
+    'PT' => 'Portugal',
+    'ES' => 'Spain',
+]);
+// → [['value' => 'PT', 'label' => 'Portugal'], ['value' => 'ES', 'label' => 'Spain']]
+```
+
+---
+
+## 12. Migration Notes
 
 ### Hook naming
 

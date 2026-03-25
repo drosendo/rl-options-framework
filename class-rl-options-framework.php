@@ -284,6 +284,9 @@ final class RL_Options_Framework
 
 		$this->assets_url = $this->resolve_assets_url($plugin);
 
+		// Initialize schema manager service before consuming default tabs.
+		$this->schema_manager = new RL_Options_Schema_Manager($this);
+
 		$this->tabs = $this->schema_manager->get_default_tabs();
 
 		// Initialize presets manager
@@ -301,9 +304,6 @@ final class RL_Options_Framework
 
 		// Initialize admin handler service for request handlers.
 		$this->admin_handler = new RL_Options_Admin_Handler($this);
-
-		// Initialize schema manager service for schema building and management.
-		$this->schema_manager = new RL_Options_Schema_Manager($this);
 
 		// Initialize REST API service for geo data and REST route registration.
 		$this->rest_api = new RL_Options_Rest_Api($this);

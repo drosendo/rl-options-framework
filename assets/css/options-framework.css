@@ -429,6 +429,21 @@
 	transform: translateX(24px);
 }
 
+.rl-options-page .rl-datetime-field {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	flex-wrap: wrap;
+}
+
+.rl-options-page .rl-datetime-field .rl-datetime-date {
+	min-width: 180px;
+}
+
+.rl-options-page .rl-datetime-field .rl-datetime-time {
+	min-width: 120px;
+}
+
 .rl-options-page .rl-accordion-toggle {
 	width: 100%;
 	background: #f6f7f7;
@@ -548,21 +563,21 @@
 }
 
 /* Support tab cards */
-.rl-options-page .svi-support-card {
+.rl-options-page .rl-support-card {
 	max-width: 640px;
 	margin-bottom: 16px;
 }
 
-.rl-options-page .svi-support-card h3 {
+.rl-options-page .rl-support-card h3 {
 	margin-top: 0;
 	margin-bottom: 10px;
 }
 
-.rl-options-page .svi-support-card p {
+.rl-options-page .rl-support-card p {
 	margin: 0 0 12px;
 }
 
-.rl-options-page .svi-support-actions {
+.rl-options-page .rl-support-actions {
 	list-style: none;
 	padding: 0;
 	margin: 0;
@@ -571,12 +586,12 @@
 	gap: 8px;
 }
 
-.rl-options-page .svi-support-actions li {
+.rl-options-page .rl-support-actions li {
 	margin: 0;
 	padding: 0;
 }
 
-.rl-options-page .svi-support-card-reset {
+.rl-options-page .rl-support-card-reset {
 	border-left-color: #d63638;
 	background: #fcf0f1;
 }

@@ -5,7 +5,7 @@ A robust, flexible, **plugin-agnostic** options framework for WordPress plugins 
 ## Features
 
 ✨ **Comprehensive Field Types**
-- Text, Textarea, Number
+- Text, Textarea, Number, DateTime
 - Select, Multiselect, Radio, Checkbox, Toggle
 - Color picker (WP Color Picker)
 - HTML/Info fields
@@ -161,6 +161,18 @@ $value = $framework->get_option( 'enabled', false );
     'max'         => 100,
     'step'        => 1,
     'required'    => true,
+]
+```
+
+### DateTime Field
+```php
+[
+    'id'          => 'launch_at',
+    'type'        => 'datetime',
+    'label'       => __( 'Launch Date & Time', 'my-plugin' ),
+    'description' => __( 'Pick a date from the calendar and set the time.', 'my-plugin' ),
+    'default'     => '2026-03-25 09:30', // Y-m-d H:i
+    'required'    => false,
 ]
 ```
 
@@ -401,7 +413,7 @@ add_action( 'my_plugin_settings_framework_boot', function( $framework ) {
 | `text_domain` | string | i18n text domain | `'rl-options-framework'` |
 | `ajax_action` | string | AJAX action name | `'rl_save_options_ajax'` |
 | `assets_url` | string | URL to assets folder | Auto-detected |
-| `version` | string | Plugin version for cache busting | `'2.0.0'` |
+| `version` | string | Plugin version for cache busting | `'2.1.0'` |
 
 ## Structure Overview
 
@@ -450,8 +462,18 @@ All CSS classes use the `.rl-` prefix:
 - WordPress 5.0+
 - PHP 7.4+
 - jQuery (bundled with WordPress)
+- jQuery UI Datepicker (bundled with WordPress)
 - WP Color Picker (bundled with WordPress)
-- SweetAlert2 (loaded from CDN)
+- SweetAlert2 (local vendor by default, CDN fallback supported)
+- Tippy.js + Popper.js (local vendor by default, CDN fallback supported)
+
+### Local vs CDN Assets
+
+The framework supports both local vendor assets and CDN-hosted assets.
+
+- Enable local vendor assets with `use_local_assets_toggle` and `local_assets_field_id`.
+- Set `assets_url` correctly so local vendor files resolve from `assets/vendor/`.
+- If local mode is disabled, framework falls back to CDN URLs for SweetAlert2, Tippy.js, and Popper.js.
 
 ## License
 
@@ -462,6 +484,12 @@ This framework is designed to be portable and can be used in any WordPress plugi
 Developed by Rosendo Labs as a generic, reusable options framework for WordPress plugins.
 
 ## Changelog
+
+### 2.1.0
+- Added `datetime` field type with WordPress datepicker calendar + time input
+- Added server-side datetime validation and sanitization (`Y-m-d H:i`)
+- Enqueued WordPress jQuery UI datepicker for datetime UI
+- Clarified README dependency strategy for local vendor assets and CDN fallback
 
 ### 2.0.0
 - Complete refactor to be plugin-agnostic

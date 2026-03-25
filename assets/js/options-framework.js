@@ -114,6 +114,71 @@
 		$('.rl-color-field').wpColorPicker();
 	}
 
+	function syncDateTimeValue(targetId) {
+		const hiddenInput = document.getElementById(targetId);
+		if (!hiddenInput) {
+			return;
+		}
+
+		const wrapper = hiddenInput.closest('.rl-datetime-field');
+		if (!wrapper) {
+			return;
+		}
+
+		const dateInput = wrapper.querySelector('.rl-datetime-date');
+		const timeInput = wrapper.querySelector('.rl-datetime-time');
+		if (!dateInput || !timeInput) {
+			return;
+		}
+
+		const dateValue = String(dateInput.value || '').trim();
+		const timeValue = String(timeInput.value || '').trim() || '00:00';
+		hiddenInput.value = dateValue ? (dateValue + ' ' + timeValue) : '';
+	}
+
+	function initDateTimePickers() {
+		const wrappers = Array.from(document.querySelectorAll('.rl-datetime-field'));
+		if (!wrappers.length) {
+			return;
+		}
+
+		rlLog('Initializing datetime pickers...', wrappers.length, 'fields found');
+
+		wrappers.forEach((wrapper) => {
+			const dateInput = wrapper.querySelector('.rl-datetime-date');
+			const timeInput = wrapper.querySelector('.rl-datetime-time');
+			const targetId = dateInput && dateInput.dataset ? dateInput.dataset.targetId : null;
+
+			if (!dateInput || !timeInput || !targetId) {
+				return;
+			}
+
+			if ($.fn && typeof $.fn.datepicker === 'function') {
+				$(dateInput).datepicker({
+					dateFormat: 'yy-mm-dd',
+					changeMonth: true,
+					changeYear: true,
+					beforeShow: function () {
+						setTimeout(function () {
+							$('#ui-datepicker-div').css('z-index', 99999);
+						}, 0);
+					}
+				});
+			}
+
+			const sync = function () {
+				syncDateTimeValue(targetId);
+			};
+
+			dateInput.addEventListener('change', sync);
+			dateInput.addEventListener('input', sync);
+			timeInput.addEventListener('change', sync);
+			timeInput.addEventListener('input', sync);
+
+			sync();
+		});
+	}
+
 	function initTabs() {
 		const navWrapper = document.querySelector('.rl-options-page .nav-tab-wrapper');
 		if (!navWrapper) {
@@ -667,7 +732,7 @@
 				try {
 					const parsed = JSON.parse(conditionsAttr);
 					// Normalize to array format
-					// Single: {field: 'enable_svi', value: true} -> [{field: 'enable_svi', value: true}]
+					// Single: {field: 'enable_feature', value: true} -> [{field: 'enable_feature', value: true}]
 					// Multiple: [{...}, {...}] -> [{...}, {...}]
 					const isMulti = Array.isArray(parsed);
 					tabConditions[link.dataset.rlTab] = isMulti ? parsed : [parsed];
@@ -767,6 +832,7 @@
 		
 		initTooltips();
 		initColorPickers();
+		initDateTimePickers();
 		initTabs();
 		initSidebarNavigation();
 		initAccordions();

@@ -85,10 +85,45 @@ Notes:
 | `number` | `int\|float` | Use `min`, `max`, `step`; optional `suffix` |
 | `color` | `string` (hex) | WP Color Picker; default must be valid hex |
 | `image` | `string` (URL) | WP media uploader (single image) |
-| `datetime` | `string` (`Y-m-d H:i`) | Calendar + time picker — see §4a |
+| `date` | `string` (`Y-m-d`) | Native date input — see §4a |
+| `datetime` | `string` (`Y-m-d H:i`) | Calendar + time picker — see §4b |
 | `html` | — | Read-only HTML block; use `html` key |
 
-### §4a — `datetime` field
+### §4a — `date` field
+
+Renders a native `<input type="date">`. The canonical saved value is a single string in `Y-m-d` format.
+
+```php
+'club_founding_date' => array(
+    'id'          => 'club_founding_date',
+    'type'        => 'date',
+    'label'       => __( 'Data de Fundação', 'acro-manager' ),
+    'description' => __( 'Founding Date (YYYY-MM-DD)', 'acro-manager' ),
+    'default'     => '2026-01-01',
+),
+```
+
+**Field options:**
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `default` | `string` | `''` | Pre-fill value in `Y-m-d` format |
+| `required` | `bool` | `false` | Blocks save when empty |
+| `min` | `string` | `''` | Optional minimum date (`Y-m-d`) |
+| `max` | `string` | `''` | Optional maximum date (`Y-m-d`) |
+
+**Validation rules:**
+
+- If `required => true` and value is empty → validation error.
+- If a value is present it must match `Y-m-d` and be a valid calendar date.
+
+**Sanitization:**
+
+- Non-empty values are normalized to `Y-m-d`.
+- Empty string is stored as-is (allows clearing an optional field).
+- Invalid values fall back to the field `default` when one is provided, otherwise `''`.
+
+### §4b — `datetime` field
 
 Renders a WordPress **jQuery UI datepicker** calendar alongside a native `<input type="time">`. The canonical saved value is a single string in `Y-m-d H:i` format.
 
@@ -144,7 +179,7 @@ if ( $raw !== '' ) {
 - `wp-color-picker` was already enqueued
 - Datepicker popup visuals are provided by framework CSS (self-contained, no image sprite dependency)
 
-### §4b — `image_select` schema
+### §4c — `image_select` schema
 
 ```php
 'options' => [

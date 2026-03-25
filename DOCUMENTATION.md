@@ -70,6 +70,64 @@ Notes:
 - If `assets_url` is set, it has highest priority. Otherwise framework resolves URL by context.
 - `use_local_assets_toggle` only affects RL Options Framework UI libraries (SweetAlert2, Tippy). It does not change assets from other plugins/themes.
 
+## 3a. Declarative Dependencies and Async Providers (Opt-in)
+
+Each field can declare dependency and provider metadata without breaking existing static fields.
+
+```php
+'country' => [
+    'id'      => 'country',
+    'type'    => 'select',
+    'label'   => __('Country', 'my-plugin'),
+    'options_provider' => [
+        'endpoint' => 'countries',
+    ],
+],
+'district' => [
+    'id'       => 'district',
+    'type'     => 'select',
+    'label'    => __('District', 'my-plugin'),
+    'depends_on' => ['country'],
+    'required_if' => [
+        ['field' => 'country', 'operator' => 'truthy'],
+    ],
+    'options_provider' => [
+        'endpoint' => 'country_subdivisions',
+        'params'   => ['country' => 'country'],
+    ],
+],
+'municipality' => [
+    'id'       => 'municipality',
+    'type'     => 'select',
+    'label'    => __('Municipality', 'my-plugin'),
+    'depends_on' => ['country', 'district'],
+    'required_if' => [
+        ['field' => 'district', 'operator' => 'truthy'],
+    ],
+    'options_provider' => [
+        'endpoint' => 'country_municipalities',
+        'params'   => [
+            'country' => 'country',
+            'subdivision' => 'district',
+        ],
+    ],
+],
+```
+
+Supported field-level keys:
+
+- `depends_on` (`string[]`): declarative parent field IDs.
+- `visibility_rules` (`array`): conditional visibility rules (same grammar as `conditions`).
+- `options_provider` (`array`): async options source (`endpoint`, optional `action`, `params`, `mapping`).
+- `required_if` (`array`): declarative required conditions evaluated on change and save.
+
+Behavior:
+
+- Runs without page reload.
+- Inline validation triggers on change.
+- Save is blocked when dependency/required/provider rules fail.
+- If async provider fails, field keeps existing local/static options.
+
 ## 4. Field Type Contract
 
 | Type | Saved value | Notes |
@@ -190,7 +248,50 @@ if ( $raw !== '' ) {
 
 Invalid schema combinations are logged as warnings.
 
-## 5. Validation Behavior
+## 5. Cascading Validation and Save Blocking
+
+- Validation runs on field change (`rl_options_framework_field_validate`) and on save.
+- Field-level errors are shown inline and save is blocked until fixed.
+- For provider-backed selects, submitted values must exist in resolved options.
+- `required_if` rules are evaluated server-side using current submitted form state.
+
+## 6. Global Country Reference Service
+
+The framework ships a global country reference layer with transient caching, source timeout, and graceful fallback.
+
+- Base metadata keys: `code`, `name`, `region`, `capital`
+- Optional hierarchies: subdivisions and municipalities
+- Empty/error source responses are cached for short TTL only
+- Sources are pluggable via filters
+
+### REST Endpoints
+
+- `GET /wp-json/rl-options/v1/countries`
+- `GET /wp-json/rl-options/v1/countries/{code}/subdivisions`
+- `GET /wp-json/rl-options/v1/countries/{code}/municipalities?subdivision=...`
+
+### Helper Functions
+
+- `rl_options_framework_get_countries()`
+- `rl_options_framework_get_country_subdivisions($country_code)`
+- `rl_options_framework_get_country_municipalities($country_code, $subdivision = '')`
+
+### Extensibility Hooks
+
+Filters:
+
+- `rl_options_framework_country_reference_sources`
+- `rl_options_framework_country_reference_data`
+- `rl_options_framework_country_subdivisions`
+- `rl_options_framework_country_municipalities`
+- `rl_options_framework_resolved_provider_options`
+
+Actions:
+
+- `rl_options_framework_country_reference_warmed`
+- `rl_options_framework_field_dependency_resolved`
+
+## 7. Validation Behavior
 
 - Fields are optional by default.
 - `required => true` enables required validation.
@@ -201,13 +302,13 @@ Invalid schema combinations are logged as warnings.
   - `section_id`
   - `message`
 
-## 6. Save UX and Resilience
+## 8. Save UX and Resilience
 
 - AJAX save uses SweetAlert when available.
 - If SweetAlert is missing/fails and `swal_fallback` is enabled, framework falls back to `window.alert`.
 - On validation error, JS focuses the first invalid field and activates its tab/section.
 
-## 7. Migration Note (Hook Naming)
+## 9. Migration Note (Hook Naming)
 
 If you previously used custom hook names like `my_plugin_settings_tabs`, migrate to:
 

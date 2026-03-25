@@ -593,6 +593,235 @@
 		}
 	}
 
+	function parseJsonAttribute(raw, fallback = null) {
+		if (!raw) {
+			return fallback;
+		}
+		try {
+			return JSON.parse(raw);
+		} catch (err) {
+			return fallback;
+		}
+	}
+
+	function getCurrentFormState(form) {
+		const state = {};
+		if (!form) {
+			return state;
+		}
+
+		const fields = Array.from(form.querySelectorAll('[name^="' + framework.optionField + '["]'));
+		fields.forEach((input) => {
+			const match = String(input.name || '').match(/\[([^\]]+)\]/);
+			if (!match) {
+				return;
+			}
+			const key = match[1];
+			state[key] = getFieldValue(form, key);
+		});
+
+		return state;
+	}
+
+	function clearInlineError(wrapper) {
+		if (!wrapper) {
+			return;
+		}
+		wrapper.classList.remove('rl-field-inline-error-active');
+		const node = wrapper.querySelector('.rl-field-inline-error');
+		if (node) {
+			node.textContent = '';
+			node.style.display = 'none';
+		}
+	}
+
+	function setInlineError(wrapper, message) {
+		if (!wrapper) {
+			return;
+		}
+		const node = wrapper.querySelector('.rl-field-inline-error');
+		if (!node) {
+			return;
+		}
+		wrapper.classList.add('rl-field-inline-error-active');
+		node.textContent = String(message || '').trim();
+		node.style.display = node.textContent ? '' : 'none';
+	}
+
+	function collectDependencyFields(wrapper, providerConfig) {
+		const watched = new Set();
+		const dependsOn = parseJsonAttribute(wrapper.dataset.dependsOn, []);
+		if (Array.isArray(dependsOn)) {
+			dependsOn.forEach((key) => {
+				if (typeof key === 'string' && key) {
+					watched.add(key);
+				}
+			});
+		}
+
+		const params = providerConfig && providerConfig.params && typeof providerConfig.params === 'object'
+			? providerConfig.params
+			: {};
+		Object.keys(params).forEach((paramName) => {
+			const fieldRef = params[paramName];
+			if (typeof fieldRef === 'string' && fieldRef) {
+				watched.add(fieldRef);
+			}
+		});
+
+		return Array.from(watched);
+	}
+
+	function applyProviderOptions(wrapper, options) {
+		if (!wrapper || !Array.isArray(options)) {
+			return;
+		}
+
+		const select = wrapper.querySelector('select');
+		if (!select) {
+			return;
+		}
+
+		const previousValue = select.value;
+		const hasEmptyOption = Array.from(select.options).some((o) => String(o.value) === '');
+		select.innerHTML = '';
+
+		if (hasEmptyOption) {
+			const emptyOption = document.createElement('option');
+			emptyOption.value = '';
+			emptyOption.textContent = '';
+			select.appendChild(emptyOption);
+		}
+
+		options.forEach((item) => {
+			if (!item || typeof item !== 'object') {
+				return;
+			}
+			const value = String(item.value || '');
+			if (!value) {
+				return;
+			}
+			const label = String(item.label || value);
+			const option = document.createElement('option');
+			option.value = value;
+			option.textContent = label;
+			select.appendChild(option);
+		});
+
+		if (previousValue && Array.from(select.options).some((o) => o.value === previousValue)) {
+			select.value = previousValue;
+		} else if (hasEmptyOption) {
+			select.value = '';
+		}
+	}
+
+	function requestFieldOptions(form, wrapper) {
+		const provider = parseJsonAttribute(wrapper.dataset.optionsProvider, null);
+		if (!provider || typeof provider !== 'object') {
+			return Promise.resolve([]);
+		}
+
+		const fieldId = wrapper.dataset.fieldId || '';
+		if (!fieldId) {
+			return Promise.resolve([]);
+		}
+
+		const payload = {
+			action: provider.action || framework.provider_action,
+			nonce: framework.nonce,
+			field_id: fieldId,
+			current_state: getCurrentFormState(form),
+			provider: provider,
+		};
+
+		return $.post(framework.ajax_url, payload)
+			.then((response) => {
+				const data = (response && response.data) ? response.data : {};
+				if (response && response.success && Array.isArray(data.options)) {
+					return data.options;
+				}
+				return [];
+			})
+			.catch(() => []);
+	}
+
+	function validateFieldInline(form, wrapper) {
+		if (!form || !wrapper) {
+			return Promise.resolve(true);
+		}
+
+		const fieldId = wrapper.dataset.fieldId || '';
+		if (!fieldId) {
+			return Promise.resolve(true);
+		}
+
+		const payload = {
+			action: framework.validate_action,
+			nonce: framework.nonce,
+			field_id: fieldId,
+		};
+
+		Array.from(new FormData(form).entries()).forEach(([key, value]) => {
+			payload[key] = value;
+		});
+
+		return $.post(framework.ajax_url, payload).then((response) => {
+			if (response && response.success) {
+				clearInlineError(wrapper);
+				return true;
+			}
+
+			const message = response && response.data && response.data.message
+				? response.data.message
+				: 'Invalid value.';
+			setInlineError(wrapper, message);
+			return false;
+		}).catch(() => true);
+	}
+
+	function initDependencyProviders() {
+		const form = document.querySelector('.rl-options-page form');
+		if (!form) {
+			return;
+		}
+
+		const providerFields = Array.from(form.querySelectorAll('.rl-field.has-options-provider'));
+		if (!providerFields.length) {
+			return;
+		}
+
+		providerFields.forEach((wrapper) => {
+			const provider = parseJsonAttribute(wrapper.dataset.optionsProvider, {});
+			const watched = collectDependencyFields(wrapper, provider);
+
+			const refresh = () => {
+				requestFieldOptions(form, wrapper).then((options) => {
+					if (Array.isArray(options) && options.length) {
+						applyProviderOptions(wrapper, options);
+					}
+					validateFieldInline(form, wrapper);
+				});
+			};
+
+			watched.forEach((fieldKey) => {
+				const fieldName = framework.optionField + '[' + fieldKey + ']';
+				const deps = form.querySelectorAll('[name="' + fieldName + '"] , [name="' + fieldName + '[]"]');
+				deps.forEach((input) => {
+					input.addEventListener('change', refresh);
+					input.addEventListener('input', refresh);
+				});
+			});
+
+			const ownInputs = wrapper.querySelectorAll('input,select,textarea');
+			ownInputs.forEach((input) => {
+				input.addEventListener('change', () => validateFieldInline(form, wrapper));
+				input.addEventListener('input', () => validateFieldInline(form, wrapper));
+			});
+
+			refresh();
+		});
+	}
+
 	function evaluateConditions(form, fieldWrapper) {
 		if (!fieldWrapper.dataset.conditions) {
 			return;
@@ -837,6 +1066,7 @@
 		initSidebarNavigation();
 		initAccordions();
 		initConditions();
+		initDependencyProviders();
 		initTabConditions();
 		updateAllSidebarSectionsVisibility();
 		
@@ -856,6 +1086,31 @@
 			// Remove default submit handler
 			$form.off('submit').on('submit', function(e) {
 				e.preventDefault();
+				const formEl = this;
+				const candidateFields = Array.from(formEl.querySelectorAll('.rl-field[data-required-if], .rl-field.has-options-provider, .rl-field.has-dependencies'));
+				if (candidateFields.length) {
+					Promise.all(candidateFields.map((wrapper) => validateFieldInline(formEl, wrapper))).then((results) => {
+						if (results.every(Boolean)) {
+							$(formEl).trigger('rl:validated-submit');
+							return;
+						}
+
+						const firstInvalid = formEl.querySelector('.rl-field.rl-field-inline-error-active');
+						if (firstInvalid) {
+							const fieldId = firstInvalid.dataset.fieldId || '';
+							focusInvalidField(fieldId, {});
+						}
+						safeSwal({
+							icon: 'error',
+							title: 'Validation Error',
+							text: 'Please fix the highlighted fields before saving.',
+							confirmButtonText: 'OK'
+						}, 'Please fix the highlighted fields before saving.');
+					});
+					return;
+				}
+				$(formEl).trigger('rl:validated-submit');
+			}).off('rl:validated-submit').on('rl:validated-submit', function() {
 				
 				rlLog('='.repeat(70));
 				rlLog('📝 FORM SUBMISSION TRIGGERED');

@@ -6,7 +6,7 @@
  * sanitization, backup/restore, and extensive field type support.
  *
  * Features:
- * - 14 field types (text, textarea, select, multiselect, radio, checkbox, toggle, color, number, datetime, html, etc.)
+ * - 15 field types (text, textarea, select, multiselect, radio, checkbox, toggle, color, number, date, datetime, html, etc.)
  * - Tabbed interface with accordion sections
  * - Conditional field display based on other field values
  * - Field validation with error messages
@@ -75,6 +75,45 @@ if (!defined('ABSPATH')) {
 	return;
 }
 
+if (!function_exists('rl_options_framework_get_countries')) {
+	/**
+	 * Get normalized country metadata.
+	 *
+	 * @return array<int,array{code:string,name:string,region:string,capital:string}>
+	 */
+	function rl_options_framework_get_countries(): array
+	{
+		$framework = RL_Options_Framework::instance();
+		return $framework->get_country_reference_countries();
+	}
+}
+
+if (!function_exists('rl_options_framework_get_country_subdivisions')) {
+	/**
+	 * Get country subdivisions as normalized options.
+	 *
+	 * @return array<int,array{value:string,label:string}>
+	 */
+	function rl_options_framework_get_country_subdivisions(string $country_code): array
+	{
+		$framework = RL_Options_Framework::instance();
+		return $framework->get_country_subdivisions($country_code);
+	}
+}
+
+if (!function_exists('rl_options_framework_get_country_municipalities')) {
+	/**
+	 * Get municipalities as normalized options.
+	 *
+	 * @return array<int,array{value:string,label:string}>
+	 */
+	function rl_options_framework_get_country_municipalities(string $country_code, string $subdivision = ''): array
+	{
+		$framework = RL_Options_Framework::instance();
+		return $framework->get_country_municipalities($country_code, $subdivision);
+	}
+}
+
 /**
  * Generic options framework for WordPress plugins.
  */
@@ -114,6 +153,13 @@ final class RL_Options_Framework
 	 * @var array<string,array>
 	 */
 	private array $tabs = [];
+
+	/**
+	 * Current request option values used by contextual validation/sanitization.
+	 *
+	 * @var array<string,mixed>
+	 */
+	private array $validation_context = [];
 
 	/**
 	 * Whether framework has been initialized.
@@ -206,6 +252,9 @@ final class RL_Options_Framework
 		add_action('admin_enqueue_scripts', [$this, 'enqueue_assets']);
 		add_action('admin_post_' . $this->config['page_slug'] . '_save', [$this, 'handle_save']);
 		add_action('wp_ajax_' . $this->config['ajax_action'], [$this, 'handle_ajax_save']);
+		add_action('wp_ajax_rl_options_framework_field_options', [$this, 'handle_ajax_field_options']);
+		add_action('wp_ajax_rl_options_framework_field_validate', [$this, 'handle_ajax_field_validate']);
+		add_action('rest_api_init', [$this, 'register_rest_routes']);
 		add_action('admin_notices', [$this, 'render_notices']);
 
 		$this->initialized = true;
@@ -441,10 +490,13 @@ final class RL_Options_Framework
 				'optionField' => $this->config['form_field_prefix'],
 				'ajax_url' => admin_url('admin-ajax.php'),
 				'ajax_action' => $this->config['ajax_action'],
+				'provider_action' => 'rl_options_framework_field_options',
+				'validate_action' => 'rl_options_framework_field_validate',
 				'nonce' => wp_create_nonce($this->config['ajax_action'] . '_nonce'),
 				'sync_history' => !empty($this->config['sync_history']),
 				'swal_fallback' => !empty($this->config['swal_fallback']),
 				'debug_level' => $this->resolve_debug_level(),
+				'rest_base' => esc_url_raw(rest_url('rl-options/v1/')),
 			]
 		);
 	}
@@ -541,6 +593,7 @@ final class RL_Options_Framework
 			RL_Logger::warn('Input is not an array; defaulting to empty array.');
 			$input = [];
 		}
+		$this->validation_context = $input;
 
 		RL_Logger::debug('Submitted field count: ' . count($input));
 		RL_Logger::debug('Submitted fields: ' . implode(', ', array_keys($input)));
@@ -694,6 +747,7 @@ final class RL_Options_Framework
 			RL_Logger::warn('Input is not an array.');
 			$input = [];
 		}
+		$this->validation_context = $input;
 
 		$saved = get_option($this->config['option_name'], []);
 		if (!is_array($saved)) {
@@ -776,6 +830,605 @@ final class RL_Options_Framework
 			'message' => __('Settings saved successfully.', $this->config['text_domain']),
 			'saved' => count($saved),
 		]);
+	}
+
+	/**
+	 * Resolve async options for a single field.
+	 */
+	public function handle_ajax_field_options(): void
+	{
+		$nonce = isset($_POST['nonce']) ? sanitize_text_field(wp_unslash($_POST['nonce'])) : '';
+		if (empty($nonce) || !wp_verify_nonce($nonce, $this->config['ajax_action'] . '_nonce')) {
+			wp_send_json_error(['message' => __('Security check failed.', $this->config['text_domain'])], 403);
+		}
+
+		if (!current_user_can($this->config['capability'])) {
+			wp_send_json_error(['message' => __('You are not allowed to perform this action.', $this->config['text_domain'])], 403);
+		}
+
+		$field_id = isset($_POST['field_id']) ? sanitize_key(wp_unslash($_POST['field_id'])) : '';
+		$current_state = wp_unslash($_POST['current_state'] ?? []);
+		if (!is_array($current_state)) {
+			$current_state = [];
+		}
+
+		$fields_map = $this->get_fields_index();
+		if ($field_id === '' || empty($fields_map[$field_id])) {
+			wp_send_json_error(['message' => __('Unknown field.', $this->config['text_domain'])], 400);
+		}
+
+		$field = $fields_map[$field_id];
+		$options = $this->resolve_field_provider_options($field, $current_state, true);
+
+		wp_send_json_success([
+			'field_id' => $field_id,
+			'options' => $options,
+		]);
+	}
+
+	/**
+	 * Validate one field on change (inline validation endpoint).
+	 */
+	public function handle_ajax_field_validate(): void
+	{
+		$nonce = isset($_POST['nonce']) ? sanitize_text_field(wp_unslash($_POST['nonce'])) : '';
+		if (empty($nonce) || !wp_verify_nonce($nonce, $this->config['ajax_action'] . '_nonce')) {
+			wp_send_json_error(['message' => __('Security check failed.', $this->config['text_domain'])], 403);
+		}
+
+		if (!current_user_can($this->config['capability'])) {
+			wp_send_json_error(['message' => __('You are not allowed to perform this action.', $this->config['text_domain'])], 403);
+		}
+
+		$field_id = isset($_POST['field_id']) ? sanitize_key(wp_unslash($_POST['field_id'])) : '';
+		$input = wp_unslash($_POST[$this->config['form_field_prefix']] ?? []);
+		if (!is_array($input)) {
+			$input = [];
+		}
+
+		$fields_map = $this->get_fields_index();
+		if ($field_id === '' || empty($fields_map[$field_id])) {
+			wp_send_json_error(['message' => __('Unknown field.', $this->config['text_domain'])], 400);
+		}
+
+		$field = $fields_map[$field_id];
+		$value = $input[$field_id] ?? null;
+		$value = $this->prepare_value_for_validation($field, $value);
+		$this->validation_context = $input;
+
+		$error = '';
+		$is_valid = $this->validate_field_value($field, $value, $error);
+
+		if ($is_valid) {
+			wp_send_json_success([
+				'field_id' => $field_id,
+				'valid' => true,
+			]);
+		}
+
+		wp_send_json_error([
+			'field_id' => $field_id,
+			'valid' => false,
+			'message' => $error,
+		]);
+	}
+
+	/**
+	 * Register reusable country metadata REST endpoints.
+	 */
+	public function register_rest_routes(): void
+	{
+		register_rest_route(
+			'rl-options/v1',
+			'/countries',
+			[
+				'methods' => 'GET',
+				'permission_callback' => '__return_true',
+				'callback' => [$this, 'rest_get_countries'],
+			]
+		);
+
+		register_rest_route(
+			'rl-options/v1',
+			'/countries/(?P<code>[A-Za-z]{2})/subdivisions',
+			[
+				'methods' => 'GET',
+				'permission_callback' => '__return_true',
+				'callback' => [$this, 'rest_get_subdivisions'],
+			]
+		);
+
+		register_rest_route(
+			'rl-options/v1',
+			'/countries/(?P<code>[A-Za-z]{2})/municipalities',
+			[
+				'methods' => 'GET',
+				'permission_callback' => '__return_true',
+				'callback' => [$this, 'rest_get_municipalities'],
+			]
+		);
+	}
+
+	/**
+	 * REST: return normalized countries list.
+	 */
+	public function rest_get_countries(WP_REST_Request $request)
+	{
+		$data = $this->get_country_reference_data();
+		$out = [];
+		foreach ($data as $code => $item) {
+			$out[] = [
+				'code' => (string) $code,
+				'name' => (string) ($item['name'] ?? $code),
+				'region' => (string) ($item['region'] ?? ''),
+				'capital' => (string) ($item['capital'] ?? ''),
+			];
+		}
+		return rest_ensure_response($out);
+	}
+
+	/**
+	 * REST: return subdivisions for a country code.
+	 */
+	public function rest_get_subdivisions(WP_REST_Request $request)
+	{
+		$country = strtoupper(sanitize_key((string) $request->get_param('code')));
+		return rest_ensure_response($this->get_country_subdivisions_data($country));
+	}
+
+	/**
+	 * REST: return municipalities for a country/subdivision.
+	 */
+	public function rest_get_municipalities(WP_REST_Request $request)
+	{
+		$country = strtoupper(sanitize_key((string) $request->get_param('code')));
+		$subdivision = sanitize_text_field((string) $request->get_param('subdivision'));
+		return rest_ensure_response($this->get_country_municipalities_data($country, $subdivision));
+	}
+
+	/**
+	 * Resolve allowed option keys for static and provider-backed fields.
+	 *
+	 * @return string[]
+	 */
+	private function get_allowed_option_keys(array $field, array $state = []): array
+	{
+		$allowed = array_map('strval', array_keys($field['options'] ?? []));
+		$provider_options = $this->resolve_field_provider_options($field, $state, false);
+
+		foreach ($provider_options as $item) {
+			if (is_array($item) && isset($item['value'])) {
+				$allowed[] = (string) $item['value'];
+			}
+		}
+
+		$allowed = array_values(array_unique(array_filter($allowed, static function ($v) {
+			return $v !== '';
+		})));
+
+		return $allowed;
+	}
+
+	/**
+	 * Evaluate required_if rule set.
+	 */
+	private function is_required_by_rules(array $rules, array $state): bool
+	{
+		if (isset($rules['field'])) {
+			$rules = [$rules];
+		}
+
+		if (empty($rules)) {
+			return false;
+		}
+
+		foreach ($rules as $rule) {
+			if (!is_array($rule)) {
+				continue;
+			}
+
+			$field = isset($rule['field']) ? (string) $rule['field'] : '';
+			if ($field === '') {
+				continue;
+			}
+
+			$current = $state[$field] ?? null;
+			$operator = strtolower((string) ($rule['operator'] ?? 'truthy'));
+			$expected = $rule['value'] ?? null;
+
+			if (!$this->match_dependency_rule($current, $operator, $expected)) {
+				return false;
+			}
+		}
+
+		return true;
+	}
+
+	/**
+	 * Compare one dependency condition.
+	 */
+	private function match_dependency_rule($current, string $operator, $expected): bool
+	{
+		switch ($operator) {
+			case 'equals':
+			case '==':
+				return $current == $expected;
+			case 'not_equals':
+			case '!=':
+				return $current != $expected;
+			case 'in':
+				return is_array($expected) ? in_array($current, $expected, true) : $current == $expected;
+			case 'not_in':
+				return is_array($expected) ? !in_array($current, $expected, true) : $current != $expected;
+			case 'empty':
+				return $current === null || $current === '' || $current === [];
+			case 'not_empty':
+				return !($current === null || $current === '' || $current === []);
+			case 'falsy':
+				return !$current;
+			case 'truthy':
+			default:
+				return (bool) $current;
+		}
+	}
+
+	/**
+	 * Resolve async provider options for a field.
+	 *
+	 * @return array<int,array{value:string,label:string}>
+	 */
+	private function resolve_field_provider_options(array $field, array $state = [], bool $fallback_static = true): array
+	{
+		$provider = $field['options_provider'] ?? null;
+		if (!is_array($provider)) {
+			return $fallback_static ? $this->normalize_options_for_transport($field['options'] ?? []) : [];
+		}
+
+		$endpoint = strtolower((string) ($provider['endpoint'] ?? ''));
+		if ($endpoint === '') {
+			$endpoint = strtolower((string) ($provider['action'] ?? ''));
+		}
+
+		$options = [];
+		$country = strtoupper((string) $this->resolve_provider_param('country', $provider, $state));
+		$subdivision = (string) $this->resolve_provider_param('subdivision', $provider, $state);
+
+		switch ($endpoint) {
+			case 'countries':
+				$countries = $this->get_country_reference_data();
+				foreach ($countries as $code => $item) {
+					$options[] = ['value' => (string) $code, 'label' => (string) ($item['name'] ?? $code)];
+				}
+				break;
+
+			case 'subdivisions':
+			case 'country_subdivisions':
+				$options = $this->get_country_subdivisions_data($country);
+				break;
+
+			case 'municipalities':
+			case 'country_municipalities':
+				$options = $this->get_country_municipalities_data($country, $subdivision);
+				break;
+		}
+
+		$options = apply_filters('rl_options_framework_resolved_provider_options', $options, $provider, $field, $state, $this);
+		if (!is_array($options) || empty($options)) {
+			$options = $fallback_static ? $this->normalize_options_for_transport($field['options'] ?? []) : [];
+		}
+
+		do_action('rl_options_framework_field_dependency_resolved', (string) ($field['id'] ?? ''), $provider, $state, $options, $this);
+
+		return $this->normalize_options_for_transport($options, $provider['mapping'] ?? []);
+	}
+
+	/**
+	 * Resolve provider parameter from explicit param mapping or state.
+	 */
+	private function resolve_provider_param(string $param, array $provider, array $state): string
+	{
+		$field_ref = $provider['params'][$param] ?? $provider[$param] ?? $param;
+		if (!is_string($field_ref) || $field_ref === '') {
+			return '';
+		}
+
+		$value = $state[$field_ref] ?? ($state[$param] ?? '');
+		if (is_array($value)) {
+			$value = reset($value);
+		}
+
+		return sanitize_text_field((string) $value);
+	}
+
+	/**
+	 * Normalize options into [{value,label}] transport format.
+	 *
+	 * @param array $options Source options.
+	 * @param array $mapping Optional mapping keys ['value' => '...', 'label' => '...'].
+	 * @return array<int,array{value:string,label:string}>
+	 */
+	private function normalize_options_for_transport(array $options, array $mapping = []): array
+	{
+		$out = [];
+		$value_key = isset($mapping['value']) ? (string) $mapping['value'] : 'value';
+		$label_key = isset($mapping['label']) ? (string) $mapping['label'] : 'label';
+
+		$is_assoc = array_keys($options) !== range(0, count($options) - 1);
+		if ($is_assoc) {
+			foreach ($options as $value => $label) {
+				if (is_array($label)) {
+					$v = $label[$value_key] ?? $value;
+					$l = $label[$label_key] ?? ($label['name'] ?? $v);
+				} else {
+					$v = $value;
+					$l = $label;
+				}
+				$out[] = ['value' => (string) $v, 'label' => (string) $l];
+			}
+		} else {
+			foreach ($options as $item) {
+				if (is_array($item)) {
+					$v = $item[$value_key] ?? ($item['value'] ?? '');
+					$l = $item[$label_key] ?? ($item['label'] ?? $v);
+					if ($v === '') {
+						continue;
+					}
+					$out[] = ['value' => (string) $v, 'label' => (string) $l];
+				}
+			}
+		}
+
+		return $out;
+	}
+
+	/**
+	 * Public helper: return countries as [{code,name,region,capital}].
+	 */
+	public function get_country_reference_countries(): array
+	{
+		$data = $this->get_country_reference_data();
+		$out = [];
+		foreach ($data as $code => $item) {
+			$out[] = [
+				'code' => (string) $code,
+				'name' => (string) ($item['name'] ?? $code),
+				'region' => (string) ($item['region'] ?? ''),
+				'capital' => (string) ($item['capital'] ?? ''),
+			];
+		}
+		return $out;
+	}
+
+	/**
+	 * Public helper: return normalized subdivisions options for a country.
+	 */
+	public function get_country_subdivisions(string $country_code): array
+	{
+		return $this->get_country_subdivisions_data($country_code);
+	}
+
+	/**
+	 * Public helper: return normalized municipalities options.
+	 */
+	public function get_country_municipalities(string $country_code, string $subdivision = ''): array
+	{
+		return $this->get_country_municipalities_data($country_code, $subdivision);
+	}
+
+	/**
+	 * Retrieve normalized country reference dataset with transient cache.
+	 *
+	 * @return array<string,array>
+	 */
+	private function get_country_reference_data(): array
+	{
+		$cache_key = 'rl_of_country_reference_v1';
+		$cached = get_transient($cache_key);
+		if (is_array($cached) && !empty($cached)) {
+			return $cached;
+		}
+
+		$data = $this->get_default_country_reference_data();
+		$sources = apply_filters(
+			'rl_options_framework_country_reference_sources',
+			[
+				[
+					'id' => 'restcountries',
+					'type' => 'restcountries',
+					'url' => 'https://restcountries.com/v3.1/all?fields=cca2,name,region,capital',
+					'timeout' => 6,
+				],
+			],
+			$this
+		);
+
+		if (is_array($sources)) {
+			foreach ($sources as $source) {
+				if (!is_array($source)) {
+					continue;
+				}
+				$type = strtolower((string) ($source['type'] ?? ''));
+				if ($type === 'restcountries') {
+					$remote = $this->fetch_restcountries_reference_data($source);
+					if (!empty($remote)) {
+						$data = $remote + $data;
+					}
+				}
+			}
+		}
+
+		$data = apply_filters('rl_options_framework_country_reference_data', $data, $sources, $this);
+		if (!is_array($data) || empty($data)) {
+			$data = $this->get_default_country_reference_data();
+		}
+
+		$ttl = max(300, (int) apply_filters('rl_options_framework_country_reference_ttl', DAY_IN_SECONDS, $this));
+		set_transient($cache_key, $data, $ttl);
+		do_action('rl_options_framework_country_reference_warmed', $data, $ttl, $this);
+
+		return $data;
+	}
+
+	/**
+	 * Load reference countries from REST Countries API.
+	 *
+	 * @return array<string,array>
+	 */
+	private function fetch_restcountries_reference_data(array $source): array
+	{
+		$url = isset($source['url']) ? esc_url_raw((string) $source['url']) : '';
+		if ($url === '') {
+			return [];
+		}
+
+		$timeout = max(2, min(12, (int) ($source['timeout'] ?? 6)));
+		$response = wp_remote_get($url, ['timeout' => $timeout]);
+		if (is_wp_error($response)) {
+			return [];
+		}
+
+		if ((int) wp_remote_retrieve_response_code($response) !== 200) {
+			return [];
+		}
+
+		$payload = json_decode((string) wp_remote_retrieve_body($response), true);
+		if (!is_array($payload)) {
+			return [];
+		}
+
+		$out = [];
+		foreach ($payload as $item) {
+			if (!is_array($item)) {
+				continue;
+			}
+			$code = strtoupper(sanitize_key((string) ($item['cca2'] ?? '')));
+			if ($code === '') {
+				continue;
+			}
+			$name = (string) ($item['name']['common'] ?? $code);
+			$region = (string) ($item['region'] ?? '');
+			$capital = '';
+			if (!empty($item['capital']) && is_array($item['capital'])) {
+				$capital = (string) reset($item['capital']);
+			}
+			$out[$code] = [
+				'code' => $code,
+				'name' => $name,
+				'region' => $region,
+				'capital' => $capital,
+			];
+		}
+
+		return $out;
+	}
+
+	/**
+	 * Fallback country dataset.
+	 *
+	 * @return array<string,array>
+	 */
+	private function get_default_country_reference_data(): array
+	{
+		return [
+			'PT' => ['code' => 'PT', 'name' => 'Portugal', 'region' => 'Europe', 'capital' => 'Lisbon'],
+			'ES' => ['code' => 'ES', 'name' => 'Spain', 'region' => 'Europe', 'capital' => 'Madrid'],
+			'FR' => ['code' => 'FR', 'name' => 'France', 'region' => 'Europe', 'capital' => 'Paris'],
+			'DE' => ['code' => 'DE', 'name' => 'Germany', 'region' => 'Europe', 'capital' => 'Berlin'],
+			'IT' => ['code' => 'IT', 'name' => 'Italy', 'region' => 'Europe', 'capital' => 'Rome'],
+			'GB' => ['code' => 'GB', 'name' => 'United Kingdom', 'region' => 'Europe', 'capital' => 'London'],
+			'US' => ['code' => 'US', 'name' => 'United States', 'region' => 'Americas', 'capital' => 'Washington, D.C.'],
+			'BR' => ['code' => 'BR', 'name' => 'Brazil', 'region' => 'Americas', 'capital' => 'Brasilia'],
+			'CA' => ['code' => 'CA', 'name' => 'Canada', 'region' => 'Americas', 'capital' => 'Ottawa'],
+			'AU' => ['code' => 'AU', 'name' => 'Australia', 'region' => 'Oceania', 'capital' => 'Canberra'],
+		];
+	}
+
+	/**
+	 * Return normalized subdivisions list for a country.
+	 *
+	 * @return array<int,array{value:string,label:string}>
+	 */
+	private function get_country_subdivisions_data(string $country_code): array
+	{
+		$country_code = strtoupper(sanitize_key($country_code));
+		if ($country_code === '') {
+			return [];
+		}
+
+		$cache_key = 'rl_of_subdivisions_' . strtolower($country_code);
+		$cached = get_transient($cache_key);
+		if (is_array($cached)) {
+			return $cached;
+		}
+
+		$defaults = [
+			'PT' => [
+				['value' => 'aveiro', 'label' => 'Aveiro'],
+				['value' => 'braga', 'label' => 'Braga'],
+				['value' => 'coimbra', 'label' => 'Coimbra'],
+				['value' => 'lisboa', 'label' => 'Lisboa'],
+				['value' => 'porto', 'label' => 'Porto'],
+			],
+		];
+
+		$out = $defaults[$country_code] ?? [];
+		$out = apply_filters('rl_options_framework_country_subdivisions', $out, $country_code, $this);
+		$out = $this->normalize_options_for_transport(is_array($out) ? $out : []);
+
+		$ttl = empty($out) ? 300 : max(900, (int) apply_filters('rl_options_framework_country_reference_ttl', DAY_IN_SECONDS, $this) / 2);
+		set_transient($cache_key, $out, $ttl);
+
+		return $out;
+	}
+
+	/**
+	 * Return normalized municipalities list for a country/subdivision.
+	 *
+	 * @return array<int,array{value:string,label:string}>
+	 */
+	private function get_country_municipalities_data(string $country_code, string $subdivision): array
+	{
+		$country_code = strtoupper(sanitize_key($country_code));
+		$subdivision = sanitize_key($subdivision);
+		if ($country_code === '') {
+			return [];
+		}
+
+		$cache_key = 'rl_of_municipalities_' . strtolower($country_code) . '_' . $subdivision;
+		$cached = get_transient($cache_key);
+		if (is_array($cached)) {
+			return $cached;
+		}
+
+		$defaults = [
+			'PT' => [
+				'lisboa' => [
+					['value' => 'lisboa', 'label' => 'Lisboa'],
+					['value' => 'sintra', 'label' => 'Sintra'],
+					['value' => 'cascais', 'label' => 'Cascais'],
+				],
+				'porto' => [
+					['value' => 'porto', 'label' => 'Porto'],
+					['value' => 'gaia', 'label' => 'Vila Nova de Gaia'],
+					['value' => 'maia', 'label' => 'Maia'],
+				],
+			],
+		];
+
+		$out = [];
+		if (isset($defaults[$country_code]) && is_array($defaults[$country_code])) {
+			if ($subdivision !== '' && isset($defaults[$country_code][$subdivision])) {
+				$out = $defaults[$country_code][$subdivision];
+			}
+		}
+
+		$out = apply_filters('rl_options_framework_country_municipalities', $out, $country_code, $subdivision, $this);
+		$out = $this->normalize_options_for_transport(is_array($out) ? $out : []);
+
+		$ttl = empty($out) ? 300 : max(900, (int) apply_filters('rl_options_framework_country_reference_ttl', DAY_IN_SECONDS, $this) / 2);
+		set_transient($cache_key, $out, $ttl);
+
+		return $out;
 	}
 
 	/**
@@ -1007,12 +1660,37 @@ final class RL_Options_Framework
 		$field_value = $options[$field_id] ?? ($field['default'] ?? null);
 
 		$data_attrs = '';
-		if (!empty($field['conditions']) && is_array($field['conditions'])) {
-			$data_attrs = sprintf(
-				' data-conditions="%s"',
-				esc_attr(wp_json_encode($field['conditions']))
+		$visibility_rules = $field['visibility_rules'] ?? ($field['conditions'] ?? []);
+		if (!empty($visibility_rules) && is_array($visibility_rules)) {
+			$data_attrs .= sprintf(
+				' data-conditions="%s" data-visibility-rules="%s"',
+				esc_attr(wp_json_encode($visibility_rules)),
+				esc_attr(wp_json_encode($visibility_rules))
 			);
 			$field_classes[] = 'has-conditions';
+		}
+
+		if (!empty($field['depends_on']) && is_array($field['depends_on'])) {
+			$data_attrs .= sprintf(
+				' data-depends-on="%s"',
+				esc_attr(wp_json_encode(array_values($field['depends_on'])))
+			);
+			$field_classes[] = 'has-dependencies';
+		}
+
+		if (!empty($field['options_provider']) && is_array($field['options_provider'])) {
+			$data_attrs .= sprintf(
+				' data-options-provider="%s"',
+				esc_attr(wp_json_encode($field['options_provider']))
+			);
+			$field_classes[] = 'has-options-provider';
+		}
+
+		if (!empty($field['required_if']) && is_array($field['required_if'])) {
+			$data_attrs .= sprintf(
+				' data-required-if="%s"',
+				esc_attr(wp_json_encode($field['required_if']))
+			);
 		}
 
 		if (!empty($field['width'])) {
@@ -1061,6 +1739,7 @@ final class RL_Options_Framework
 		echo '<div class="rl-field-control">';
 		$this->render_field_control($field, $field_value);
 		echo '</div>';
+		echo '<div class="rl-field-inline-error" aria-live="polite" style="display:none;"></div>';
 
 		echo '</div>'; // Close .rl-field
 
@@ -1886,7 +2565,7 @@ final class RL_Options_Framework
 			case 'select':
 			case 'radio':
 			case 'image_select':
-				$allowed = array_keys($field['options'] ?? []);
+				$allowed = $this->get_allowed_option_keys($field, $this->validation_context);
 
 				// Convert allowed keys to strings to match form submission values
 				// Form values are always strings, but array_keys() may return integers
@@ -1904,9 +2583,9 @@ final class RL_Options_Framework
 					));
 				}
 
-				return in_array($value, $allowed, true) ? $value : ($field['default'] ?? null);
+				return in_array((string) $value, $allowed, true) ? (string) $value : ($field['default'] ?? null);
 			case 'multiselect':
-				$allowed = array_keys($field['options'] ?? []);
+				$allowed = $this->get_allowed_option_keys($field, $this->validation_context);
 				$values = is_array($value) ? array_values($value) : [];
 
 				return array_values(
@@ -2018,6 +2697,15 @@ final class RL_Options_Framework
 			return false;
 		}
 
+		if (!empty($field['required_if']) && is_array($field['required_if']) && $this->is_required_by_rules($field['required_if'], $this->validation_context) && ($value === null || $value === '')) {
+			$error = sprintf(
+				/* translators: %s: field title */
+				__('%s is required for the selected dependency values.', $this->config['text_domain']),
+				$field_label
+			);
+			return false;
+		}
+
 		// Type-specific validation
 		switch ($field['type']) {
 			case 'number':
@@ -2100,6 +2788,43 @@ final class RL_Options_Framework
 						$field_label
 					);
 					return false;
+				}
+				break;
+
+			case 'select':
+			case 'radio':
+			case 'image_select':
+				if ($value === '' || $value === null) {
+					break;
+				}
+
+				$allowed = $this->get_allowed_option_keys($field, $this->validation_context);
+				if (!in_array((string) $value, $allowed, true)) {
+					$error = sprintf(
+						/* translators: %s: field title */
+						__('%s has an invalid option selected.', $this->config['text_domain']),
+						$field_label
+					);
+					return false;
+				}
+				break;
+
+			case 'multiselect':
+				if ($value === '' || $value === null) {
+					break;
+				}
+
+				$allowed = $this->get_allowed_option_keys($field, $this->validation_context);
+				$values = is_array($value) ? $value : [$value];
+				foreach ($values as $item) {
+					if (!in_array((string) $item, $allowed, true)) {
+						$error = sprintf(
+							/* translators: %s: field title */
+							__('%s includes an invalid option.', $this->config['text_domain']),
+							$field_label
+						);
+						return false;
+					}
 				}
 				break;
 

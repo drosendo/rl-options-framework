@@ -612,6 +612,21 @@
 	50% { box-shadow: 0 0 0 4px rgba(214, 54, 56, 0.25); }
 }
 
+.rl-options-page .rl-field .rl-field-inline-error {
+	color: #b32d2e;
+	font-size: 12px;
+	font-weight: 500;
+	line-height: 1.4;
+	margin-top: 6px;
+}
+
+.rl-options-page .rl-field.rl-field-inline-error-active .rl-field-control input,
+.rl-options-page .rl-field.rl-field-inline-error-active .rl-field-control select,
+.rl-options-page .rl-field.rl-field-inline-error-active .rl-field-control textarea {
+	border-color: #d63638 !important;
+	box-shadow: 0 0 0 1px rgba(214, 54, 56, 0.2);
+}
+
 .rl-options-page .rl-submit-bar {
 	margin-top: 24px;
 	padding-top: 16px;

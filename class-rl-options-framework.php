@@ -360,6 +360,14 @@ final class RL_Options_Framework
 			$this->config['version']
 		);
 
+		// jQuery UI theme CSS — required for datepicker calendar popup visibility.
+		wp_enqueue_style(
+			'jquery-ui-datepicker-style',
+			includes_url('css/jquery-ui-fresh.css'),
+			[],
+			'1.13.3'
+		);
+
 		$sweetalert_css_url = $use_local_assets
 			? $this->assets_url . 'vendor/sweetalert2/sweetalert2.min.css'
 			: 'https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css';
@@ -443,9 +451,23 @@ final class RL_Options_Framework
 				'nonce' => wp_create_nonce($this->config['ajax_action'] . '_nonce'),
 				'sync_history' => !empty($this->config['sync_history']),
 				'swal_fallback' => !empty($this->config['swal_fallback']),
-				'debug_level' => (string) ($this->config['debug_level'] ?? 'error'),
+				'debug_level' => $this->resolve_debug_level(),
 			]
 		);
+	}
+
+	/**
+	 * Resolve the effective JS debug level.
+	 * If the saved options contain a truthy debug toggle, returns 'debug'.
+	 * Otherwise falls back to config['debug_level'] (default 'error').
+	 */
+	private function resolve_debug_level(): string
+	{
+		$options = get_option($this->config['option_name'], []);
+		if (is_array($options) && !empty($options[$this->config['debug_field_id']])) {
+			return 'debug';
+		}
+		return (string) ($this->config['debug_level'] ?? 'error');
 	}
 
 	/**

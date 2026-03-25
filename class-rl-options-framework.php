@@ -1141,6 +1141,75 @@ final class RL_Options_Framework
 	}
 
 	/**
+	 * Build options map for geo field types.
+	 *
+	 * @return array<string,string>
+	 */
+	private function get_geo_field_options(array $field, string $type, array $state = []): array
+	{
+		$out = [];
+		$type = strtolower($type);
+
+		if ($type === 'country') {
+			foreach ($this->get_country_reference_data() as $code => $item) {
+				$out[(string) $code] = (string) ($item['name'] ?? $code);
+			}
+			return $out;
+		}
+
+		$country = $this->resolve_geo_country_code($field, $state);
+		if ($country === '') {
+			return $out;
+		}
+
+		if ($type === 'state') {
+			foreach ($this->get_country_subdivisions_data($country) as $item) {
+				if (is_array($item) && isset($item['value'])) {
+					$out[(string) $item['value']] = (string) ($item['label'] ?? $item['value']);
+				}
+			}
+			return $out;
+		}
+
+		if ($type === 'city') {
+			$subdivision = '';
+			if (!empty($field['subdivision'])) {
+				$subdivision = sanitize_key((string) $field['subdivision']);
+			} elseif (!empty($field['subdivision_field']) && isset($state[(string) $field['subdivision_field']])) {
+				$subdivision = sanitize_key((string) $state[(string) $field['subdivision_field']]);
+			}
+
+			foreach ($this->get_country_municipalities_data($country, $subdivision) as $item) {
+				if (is_array($item) && isset($item['value'])) {
+					$out[(string) $item['value']] = (string) ($item['label'] ?? $item['value']);
+				}
+			}
+		}
+
+		return $out;
+	}
+
+	/**
+	 * Resolve country code from fixed field config or linked country field.
+	 */
+	private function resolve_geo_country_code(array $field, array $state = []): string
+	{
+		$country = '';
+		if (!empty($field['country'])) {
+			$country = strtoupper(sanitize_key((string) $field['country']));
+		}
+
+		if ($country === '' && !empty($field['country_field'])) {
+			$key = (string) $field['country_field'];
+			if (isset($state[$key])) {
+				$country = strtoupper(sanitize_key((string) $state[$key]));
+			}
+		}
+
+		return $country;
+	}
+
+	/**
 	 * Normalize options into [{value,label}] transport format.
 	 *
 	 * @param array $options Source options.
@@ -1262,8 +1331,12 @@ final class RL_Options_Framework
 			$data = $this->get_default_country_reference_data();
 		}
 
-		$ttl = max(300, (int) apply_filters('rl_options_framework_country_reference_ttl', DAY_IN_SECONDS, $this));
-		set_transient($cache_key, $data, $ttl);
+		$ttl = max(0, (int) apply_filters('rl_options_framework_country_reference_ttl', 0, $this));
+		if (!empty($data)) {
+			set_transient($cache_key, $data, $ttl);
+		} else {
+			delete_transient($cache_key);
+		}
 		do_action('rl_options_framework_country_reference_warmed', $data, $ttl, $this);
 
 		return $data;
@@ -1357,7 +1430,7 @@ final class RL_Options_Framework
 
 		$cache_key = 'rl_of_subdivisions_' . strtolower($country_code);
 		$cached = get_transient($cache_key);
-		if (is_array($cached)) {
+		if (is_array($cached) && !empty($cached)) {
 			return $cached;
 		}
 
@@ -1375,8 +1448,12 @@ final class RL_Options_Framework
 		$out = apply_filters('rl_options_framework_country_subdivisions', $out, $country_code, $this);
 		$out = $this->normalize_options_for_transport(is_array($out) ? $out : []);
 
-		$ttl = empty($out) ? 300 : max(900, (int) apply_filters('rl_options_framework_country_reference_ttl', DAY_IN_SECONDS, $this) / 2);
-		set_transient($cache_key, $out, $ttl);
+		$ttl = max(0, (int) apply_filters('rl_options_framework_country_reference_ttl', 0, $this));
+		if (!empty($out)) {
+			set_transient($cache_key, $out, $ttl);
+		} else {
+			delete_transient($cache_key);
+		}
 
 		return $out;
 	}
@@ -1396,7 +1473,7 @@ final class RL_Options_Framework
 
 		$cache_key = 'rl_of_municipalities_' . strtolower($country_code) . '_' . $subdivision;
 		$cached = get_transient($cache_key);
-		if (is_array($cached)) {
+		if (is_array($cached) && !empty($cached)) {
 			return $cached;
 		}
 
@@ -1419,14 +1496,24 @@ final class RL_Options_Framework
 		if (isset($defaults[$country_code]) && is_array($defaults[$country_code])) {
 			if ($subdivision !== '' && isset($defaults[$country_code][$subdivision])) {
 				$out = $defaults[$country_code][$subdivision];
+			} elseif ($subdivision === '') {
+				foreach ($defaults[$country_code] as $items) {
+					if (is_array($items)) {
+						$out = array_merge($out, $items);
+					}
+				}
 			}
 		}
 
 		$out = apply_filters('rl_options_framework_country_municipalities', $out, $country_code, $subdivision, $this);
 		$out = $this->normalize_options_for_transport(is_array($out) ? $out : []);
 
-		$ttl = empty($out) ? 300 : max(900, (int) apply_filters('rl_options_framework_country_reference_ttl', DAY_IN_SECONDS, $this) / 2);
-		set_transient($cache_key, $out, $ttl);
+		$ttl = max(0, (int) apply_filters('rl_options_framework_country_reference_ttl', 0, $this));
+		if (!empty($out)) {
+			set_transient($cache_key, $out, $ttl);
+		} else {
+			delete_transient($cache_key);
+		}
 
 		return $out;
 	}
@@ -1933,6 +2020,118 @@ final class RL_Options_Framework
 					);
 				}
 				echo '</select>';
+				break;
+
+			case 'country':
+				$options = $this->get_geo_field_options($field, 'country', []);
+				printf(
+					'<select id="%1$s" name="%2$s" class="rl-geo-country">',
+					esc_attr($input_id),
+					esc_attr($field_name)
+				);
+				if (!empty($field['placeholder'])) {
+					printf('<option value="">%s</option>', esc_html((string) $field['placeholder']));
+				}
+				foreach ($options as $option_value => $option_label) {
+					printf(
+						'<option value="%1$s"%2$s>%3$s</option>',
+						esc_attr($option_value),
+						selected($value, $option_value, false),
+						esc_html($option_label)
+					);
+				}
+				echo '</select>';
+				break;
+
+			case 'state':
+				$options = $this->get_geo_field_options($field, 'state', $this->get_options());
+				$country_source = isset($field['country_field']) ? (string) $field['country_field'] : '';
+				printf(
+					'<select id="%1$s" name="%2$s" class="rl-geo-state" data-country="%4$s" data-country-field="%5$s">',
+					esc_attr($input_id),
+					esc_attr($field_name),
+					esc_attr((string) $value),
+					esc_attr((string) ($field['country'] ?? '')),
+					esc_attr($country_source)
+				);
+				if (!empty($field['placeholder'])) {
+					printf('<option value="">%s</option>', esc_html((string) $field['placeholder']));
+				}
+				foreach ($options as $option_value => $option_label) {
+					printf(
+						'<option value="%1$s"%2$s>%3$s</option>',
+						esc_attr($option_value),
+						selected($value, $option_value, false),
+						esc_html($option_label)
+					);
+				}
+				echo '</select>';
+				break;
+
+			case 'city':
+				$options = $this->get_geo_field_options($field, 'city', $this->get_options());
+				$country_source = isset($field['country_field']) ? (string) $field['country_field'] : '';
+				$subdivision_source = isset($field['subdivision_field']) ? (string) $field['subdivision_field'] : '';
+				printf(
+					'<select id="%1$s" name="%2$s" class="rl-geo-city" data-country="%4$s" data-country-field="%5$s" data-subdivision-field="%6$s">',
+					esc_attr($input_id),
+					esc_attr($field_name),
+					esc_attr((string) $value),
+					esc_attr((string) ($field['country'] ?? '')),
+					esc_attr($country_source),
+					esc_attr($subdivision_source)
+				);
+				if (!empty($field['placeholder'])) {
+					printf('<option value="">%s</option>', esc_html((string) $field['placeholder']));
+				}
+				foreach ($options as $option_value => $option_label) {
+					printf(
+						'<option value="%1$s"%2$s>%3$s</option>',
+						esc_attr($option_value),
+						selected($value, $option_value, false),
+						esc_html($option_label)
+					);
+				}
+				echo '</select>';
+				break;
+
+			case 'country_state_city':
+				$group = is_array($value) ? $value : [];
+				$country_val = sanitize_text_field((string) ($group['country'] ?? ($field['default']['country'] ?? '')));
+				$state_val = sanitize_text_field((string) ($group['state'] ?? ($field['default']['state'] ?? '')));
+				$city_val = sanitize_text_field((string) ($group['city'] ?? ($field['default']['city'] ?? '')));
+				$country_label = (string) ($field['country_label'] ?? __('Country', $this->config['text_domain']));
+				$state_label = (string) ($field['state_label'] ?? __('State', $this->config['text_domain']));
+				$city_label = (string) ($field['city_label'] ?? __('City', $this->config['text_domain']));
+				$countries = $this->get_geo_field_options($field, 'country', []);
+				$states = $this->get_geo_field_options(array_merge($field, ['country' => $country_val]), 'state', []);
+				$cities = $this->get_geo_field_options(array_merge($field, ['country' => $country_val, 'subdivision' => $state_val]), 'city', []);
+
+				echo '<div class="rl-country-state-city-field" data-field-id="' . esc_attr($field_id) . '">';
+				echo '<div class="rl-csc-col"><label>' . esc_html($country_label) . '</label>';
+				echo '<select class="rl-csc-country" name="' . esc_attr($field_name . '[country]') . '">';
+				echo '<option value=""></option>';
+				foreach ($countries as $k => $v) {
+					printf('<option value="%1$s"%2$s>%3$s</option>', esc_attr($k), selected($country_val, $k, false), esc_html($v));
+				}
+				echo '</select></div>';
+
+				echo '<div class="rl-csc-col"><label>' . esc_html($state_label) . '</label>';
+				echo '<select class="rl-csc-state" name="' . esc_attr($field_name . '[state]') . '">';
+				echo '<option value=""></option>';
+				foreach ($states as $k => $v) {
+					printf('<option value="%1$s"%2$s>%3$s</option>', esc_attr($k), selected($state_val, $k, false), esc_html($v));
+				}
+				echo '</select></div>';
+
+				echo '<div class="rl-csc-col"><label>' . esc_html($city_label) . '</label>';
+				echo '<select class="rl-csc-city" name="' . esc_attr($field_name . '[city]') . '">';
+				echo '<option value=""></option>';
+				foreach ($cities as $k => $v) {
+					printf('<option value="%1$s"%2$s>%3$s</option>', esc_attr($k), selected($city_val, $k, false), esc_html($v));
+				}
+				echo '</select></div>';
+				echo '</div>';
 				break;
 
 			case 'multiselect':
@@ -2493,6 +2692,40 @@ final class RL_Options_Framework
 			case 'checkbox':
 				return !empty($value);
 
+			case 'country':
+			case 'state':
+			case 'city':
+				$raw = sanitize_text_field((string) $value);
+				$allowed = array_keys($this->get_geo_field_options($field, (string) $field['type'], $this->validation_context));
+				return in_array($raw, $allowed, true) ? $raw : '';
+
+			case 'country_state_city':
+				$raw_group = is_array($value) ? $value : [];
+				$country = sanitize_text_field((string) ($raw_group['country'] ?? ''));
+				$state = sanitize_text_field((string) ($raw_group['state'] ?? ''));
+				$city = sanitize_text_field((string) ($raw_group['city'] ?? ''));
+
+				$allowed_countries = array_keys($this->get_geo_field_options($field, 'country', $this->validation_context));
+				if (!in_array($country, $allowed_countries, true)) {
+					$country = '';
+				}
+
+				$allowed_states = array_keys($this->get_geo_field_options(array_merge($field, ['country' => $country]), 'state', $this->validation_context));
+				if (!in_array($state, $allowed_states, true)) {
+					$state = '';
+				}
+
+				$allowed_cities = array_keys($this->get_geo_field_options(array_merge($field, ['country' => $country, 'subdivision' => $state]), 'city', $this->validation_context));
+				if (!in_array($city, $allowed_cities, true)) {
+					$city = '';
+				}
+
+				return [
+					'country' => $country,
+					'state' => $state,
+					'city' => $city,
+				];
+
 			case 'date':
 				if ($value === null || $value === '') {
 					return '';
@@ -2708,6 +2941,76 @@ final class RL_Options_Framework
 
 		// Type-specific validation
 		switch ($field['type']) {
+			case 'country':
+			case 'state':
+			case 'city':
+				if ($value === '' || $value === null) {
+					break;
+				}
+				$allowed = array_keys($this->get_geo_field_options($field, (string) $field['type'], $this->validation_context));
+				if (!in_array((string) $value, $allowed, true)) {
+					$error = sprintf(
+						/* translators: %s: field title */
+						__('%s has an invalid geographic value.', $this->config['text_domain']),
+						$field_label
+					);
+					return false;
+				}
+				break;
+
+			case 'country_state_city':
+				$group = is_array($value) ? $value : [];
+				$country = sanitize_text_field((string) ($group['country'] ?? ''));
+				$state = sanitize_text_field((string) ($group['state'] ?? ''));
+				$city = sanitize_text_field((string) ($group['city'] ?? ''));
+				$required = !empty($field['required']);
+
+				if ($required && $country === '') {
+					$error = sprintf(
+						/* translators: %s: field title */
+						__('%s requires a country selection.', $this->config['text_domain']),
+						$field_label
+					);
+					return false;
+				}
+
+				if ($country !== '') {
+					$allowed_countries = array_keys($this->get_geo_field_options($field, 'country', $this->validation_context));
+					if (!in_array($country, $allowed_countries, true)) {
+						$error = sprintf(
+							/* translators: %s: field title */
+							__('%s has an invalid country.', $this->config['text_domain']),
+							$field_label
+						);
+						return false;
+					}
+				}
+
+				if ($state !== '') {
+					$allowed_states = array_keys($this->get_geo_field_options(array_merge($field, ['country' => $country]), 'state', $this->validation_context));
+					if (!in_array($state, $allowed_states, true)) {
+						$error = sprintf(
+							/* translators: %s: field title */
+							__('%s has an invalid state/district.', $this->config['text_domain']),
+							$field_label
+						);
+						return false;
+					}
+				}
+
+				if ($city !== '') {
+					$allowed_cities = array_keys($this->get_geo_field_options(array_merge($field, ['country' => $country, 'subdivision' => $state]), 'city', $this->validation_context));
+					if (!in_array($city, $allowed_cities, true)) {
+						$error = sprintf(
+							/* translators: %s: field title */
+							__('%s has an invalid city/municipality.', $this->config['text_domain']),
+							$field_label
+						);
+						return false;
+					}
+				}
+				break;
+
 			case 'number':
 				if (!is_numeric($value)) {
 					$error = sprintf(

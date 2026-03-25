@@ -143,11 +143,91 @@ Behavior:
 | `number` | `int\|float` | Use `min`, `max`, `step`; optional `suffix` |
 | `color` | `string` (hex) | WP Color Picker; default must be valid hex |
 | `image` | `string` (URL) | WP media uploader (single image) |
-| `date` | `string` (`Y-m-d`) | Native date input — see §4a |
-| `datetime` | `string` (`Y-m-d H:i`) | Calendar + time picker — see §4b |
+| `country` | `string` (ISO2) | Country dropdown (all countries) — see §4a |
+| `state` | `string` | Subdivision dropdown for a fixed/linked country — see §4b |
+| `city` | `string` | Municipality dropdown for a fixed/linked country — see §4c |
+| `country_state_city` | `array` | Combined Country > State > City field — see §4d |
+| `date` | `string` (`Y-m-d`) | Native date input — see §4e |
+| `datetime` | `string` (`Y-m-d H:i`) | Calendar + time picker — see §4f |
 | `html` | — | Read-only HTML block; use `html` key |
 
-### §4a — `date` field
+### §4a — `country` field
+
+Renders a country dropdown backed by normalized country reference data.
+
+```php
+'country' => [
+    'id'    => 'country_field',
+    'type'  => 'country',
+    'label' => __('Country', 'my-plugin'),
+],
+```
+
+Saved format: `ISO2` code (example: `PT`, `ES`, `US`).
+
+### §4b — `state` field
+
+Renders a subdivision dropdown for a predefined country or a linked country field.
+
+```php
+'state' => array(
+    'id'       => 'state_field',
+    'type'     => 'state',
+    'country'  => 'pt', // fixed ISO country
+    'label'    => __('Distrito', 'acro-manager'),
+),
+```
+
+Alternative dynamic linkage:
+
+```php
+'state' => [
+    'id'            => 'state_field',
+    'type'          => 'state',
+    'country_field' => 'country_field',
+    'label'         => __('State', 'my-plugin'),
+],
+```
+
+### §4c — `city` field
+
+Renders a municipality dropdown for a predefined country or linked country/subdivision fields.
+
+```php
+'city' => array(
+    'id'      => 'city_field',
+    'type'    => 'city',
+    'country' => 'pt', // fixed ISO country
+    'label'   => __('Localidade', 'acro-manager'),
+),
+```
+
+### §4d — `country_state_city` field
+
+Combined listing field (Country > State > City), with customizable labels for each select.
+
+```php
+'club_location' => [
+    'id'            => 'club_location',
+    'type'          => 'country_state_city',
+    'label'         => __('Location', 'my-plugin'),
+    'country_label' => __('País', 'my-plugin'),
+    'state_label'   => __('Distrito', 'my-plugin'),
+    'city_label'    => __('Localidade', 'my-plugin'),
+],
+```
+
+Saved format:
+
+```php
+[
+  'country' => 'PT',
+  'state'   => 'lisboa',
+  'city'    => 'sintra',
+]
+```
+
+### §4e — `date` field
 
 Renders a native `<input type="date">`. The canonical saved value is a single string in `Y-m-d` format.
 
@@ -181,7 +261,7 @@ Renders a native `<input type="date">`. The canonical saved value is a single st
 - Empty string is stored as-is (allows clearing an optional field).
 - Invalid values fall back to the field `default` when one is provided, otherwise `''`.
 
-### §4b — `datetime` field
+### §4f — `datetime` field
 
 Renders a WordPress **jQuery UI datepicker** calendar alongside a native `<input type="time">`. The canonical saved value is a single string in `Y-m-d H:i` format.
 
@@ -237,7 +317,7 @@ if ( $raw !== '' ) {
 - `wp-color-picker` was already enqueued
 - Datepicker popup visuals are provided by framework CSS (self-contained, no image sprite dependency)
 
-### §4c — `image_select` schema
+### §4g — `image_select` schema
 
 ```php
 'options' => [
@@ -261,7 +341,8 @@ The framework ships a global country reference layer with transient caching, sou
 
 - Base metadata keys: `code`, `name`, `region`, `capital`
 - Optional hierarchies: subdivisions and municipalities
-- Empty/error source responses are cached for short TTL only
+- Cache lifetime is effectively eternal by default (transient TTL `0`)
+- Data is re-fetched only when transient is cleared/expired or cached data is empty
 - Sources are pluggable via filters
 
 ### REST Endpoints

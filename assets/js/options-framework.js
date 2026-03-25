@@ -822,6 +822,163 @@
 		});
 	}
 
+	function fillSelectOptions(select, options, preserveValue = true) {
+		if (!select) {
+			return;
+		}
+		const previous = preserveValue ? select.value : '';
+		select.innerHTML = '';
+		const empty = document.createElement('option');
+		empty.value = '';
+		empty.textContent = '';
+		select.appendChild(empty);
+
+		(options || []).forEach((item) => {
+			if (!item || typeof item !== 'object' || !item.value) {
+				return;
+			}
+			const opt = document.createElement('option');
+			opt.value = String(item.value);
+			opt.textContent = String(item.label || item.value);
+			select.appendChild(opt);
+		});
+
+		if (previous && Array.from(select.options).some((o) => o.value === previous)) {
+			select.value = previous;
+		}
+	}
+
+	function loadGeoOptions(endpointPath) {
+		const base = String(framework.rest_base || '');
+		if (!base) {
+			return Promise.resolve([]);
+		}
+		const url = base.replace(/\/$/, '') + endpointPath;
+		return $.getJSON(url).then((data) => (Array.isArray(data) ? data : [])).catch(() => []);
+	}
+
+	function initGeoFieldTypes() {
+		const form = document.querySelector('.rl-options-page form');
+		if (!form) {
+			return;
+		}
+
+		const stateFields = Array.from(form.querySelectorAll('select.rl-geo-state[data-country-field]'));
+		stateFields.forEach((stateSelect) => {
+			const fieldKey = stateSelect.getAttribute('data-country-field') || '';
+			if (!fieldKey) {
+				return;
+			}
+			const countryName = framework.optionField + '[' + fieldKey + ']';
+			const countryInput = form.querySelector('[name="' + countryName + '"]');
+			if (!countryInput) {
+				return;
+			}
+
+			const refresh = () => {
+				const code = String(countryInput.value || '').toUpperCase();
+				if (!code) {
+					fillSelectOptions(stateSelect, []);
+					return;
+				}
+				loadGeoOptions('/countries/' + encodeURIComponent(code) + '/subdivisions').then((options) => {
+					fillSelectOptions(stateSelect, options);
+				});
+			};
+
+			countryInput.addEventListener('change', refresh);
+			countryInput.addEventListener('input', refresh);
+			refresh();
+		});
+
+		const cityFields = Array.from(form.querySelectorAll('select.rl-geo-city'));
+		cityFields.forEach((citySelect) => {
+			const countryField = citySelect.getAttribute('data-country-field') || '';
+			const subdivisionField = citySelect.getAttribute('data-subdivision-field') || '';
+			const staticCountry = String(citySelect.getAttribute('data-country') || '').toUpperCase();
+
+			const refresh = () => {
+				let country = staticCountry;
+				if (countryField) {
+					const cInput = form.querySelector('[name="' + framework.optionField + '[' + countryField + ']"]');
+					country = cInput ? String(cInput.value || '').toUpperCase() : country;
+				}
+				if (!country) {
+					fillSelectOptions(citySelect, []);
+					return;
+				}
+
+				let subdivision = '';
+				if (subdivisionField) {
+					const sInput = form.querySelector('[name="' + framework.optionField + '[' + subdivisionField + ']"]');
+					subdivision = sInput ? String(sInput.value || '') : '';
+				}
+
+				const query = subdivision ? ('?subdivision=' + encodeURIComponent(subdivision)) : '';
+				loadGeoOptions('/countries/' + encodeURIComponent(country) + '/municipalities' + query).then((options) => {
+					fillSelectOptions(citySelect, options);
+				});
+			};
+
+			if (countryField) {
+				const cInput = form.querySelector('[name="' + framework.optionField + '[' + countryField + ']"]');
+				if (cInput) {
+					cInput.addEventListener('change', refresh);
+					cInput.addEventListener('input', refresh);
+				}
+			}
+			if (subdivisionField) {
+				const sInput = form.querySelector('[name="' + framework.optionField + '[' + subdivisionField + ']"]');
+				if (sInput) {
+					sInput.addEventListener('change', refresh);
+					sInput.addEventListener('input', refresh);
+				}
+			}
+
+			refresh();
+		});
+
+		const groupFields = Array.from(form.querySelectorAll('.rl-country-state-city-field'));
+		groupFields.forEach((group) => {
+			const countrySelect = group.querySelector('.rl-csc-country');
+			const stateSelect = group.querySelector('.rl-csc-state');
+			const citySelect = group.querySelector('.rl-csc-city');
+			if (!countrySelect || !stateSelect || !citySelect) {
+				return;
+			}
+
+			const refreshStates = () => {
+				const country = String(countrySelect.value || '').toUpperCase();
+				if (!country) {
+					fillSelectOptions(stateSelect, []);
+					fillSelectOptions(citySelect, []);
+					return;
+				}
+				loadGeoOptions('/countries/' + encodeURIComponent(country) + '/subdivisions').then((options) => {
+					fillSelectOptions(stateSelect, options);
+					refreshCities();
+				});
+			};
+
+			const refreshCities = () => {
+				const country = String(countrySelect.value || '').toUpperCase();
+				if (!country) {
+					fillSelectOptions(citySelect, []);
+					return;
+				}
+				const subdivision = String(stateSelect.value || '');
+				const query = subdivision ? ('?subdivision=' + encodeURIComponent(subdivision)) : '';
+				loadGeoOptions('/countries/' + encodeURIComponent(country) + '/municipalities' + query).then((options) => {
+					fillSelectOptions(citySelect, options);
+				});
+			};
+
+			countrySelect.addEventListener('change', refreshStates);
+			stateSelect.addEventListener('change', refreshCities);
+			refreshStates();
+		});
+	}
+
 	function evaluateConditions(form, fieldWrapper) {
 		if (!fieldWrapper.dataset.conditions) {
 			return;
@@ -1066,6 +1223,7 @@
 		initSidebarNavigation();
 		initAccordions();
 		initConditions();
+		initGeoFieldTypes();
 		initDependencyProviders();
 		initTabConditions();
 		updateAllSidebarSectionsVisibility();

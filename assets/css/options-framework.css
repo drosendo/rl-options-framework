@@ -443,6 +443,30 @@
 .rl-options-page .rl-datetime-field .rl-datetime-time {
 	min-width: 120px;
 
+
+.rl-options-page .rl-country-state-city-field {
+	display: grid;
+	gap: 10px;
+	grid-template-columns: repeat(3, minmax(140px, 1fr));
+}
+
+.rl-options-page .rl-country-state-city-field .rl-csc-col {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+}
+
+.rl-options-page .rl-country-state-city-field .rl-csc-col label {
+	font-size: 11px;
+	font-weight: 600;
+	color: #50575e;
+}
+
+@media (max-width: 960px) {
+	.rl-options-page .rl-country-state-city-field {
+		grid-template-columns: 1fr;
+	}
+}
 /* ─── jQuery UI Datepicker popup ────────────────────────────────────────────
    Self-contained — no image dependencies. Uses WP admin colour palette.
    Loaded only on the RL Options page (enqueue_assets is page-gated).
@@ -476,6 +500,7 @@
 	padding: 0 5px;
 	position: absolute;
 	top: 5px;
+	-webkit-user-select: none;
 	user-select: none;
 }
 .ui-datepicker-prev { left: 4px; }

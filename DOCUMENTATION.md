@@ -1,8 +1,16 @@
 # RL Options Framework Documentation
 
-A portable options framework for WordPress plugins and themes.
+> Portable WordPress options framework for plugins/themes with validation, async providers, and reusable geo metadata APIs.
+
+---
 
 ## 1. Installation
+
+### What it is
+
+Load and initialize the framework in your plugin or theme context.
+
+### How to use
 
 ```php
 require_once __DIR__ . '/includes/library/rloptionsFramework/main.php';
@@ -20,14 +28,22 @@ $framework = new RL_Options_Framework($config);
 $framework->init();
 ```
 
-## 2. Canonical Hooks (Runtime Contract)
+---
 
-Hook names are generated from `option_name`:
+## 2. Canonical Hooks
 
-- Tabs filter: `{option_name}_framework_tabs`
-- Boot action: `{option_name}_framework_boot`
+### What it is
 
-Example:
+Runtime hook names are derived from `option_name`.
+
+### Hook map
+
+| Hook Type | Pattern | Example |
+|----------|---------|---------|
+| Tabs filter | `{option_name}_framework_tabs` | `my_project_options_framework_tabs` |
+| Boot action | `{option_name}_framework_boot` | `my_project_options_framework_boot` |
+
+### Example
 
 ```php
 add_filter('my_project_options_framework_tabs', function(array $tabs) {
@@ -54,106 +70,62 @@ add_filter('my_project_options_framework_tabs', function(array $tabs) {
 });
 ```
 
-## 3. Configuration Options
+---
 
-- `context`: `auto | plugin | theme`
-- `register_menu`: `true | false`
-- `sync_history`: `true | false`
-- `debug_level`: `error | warn | info | debug`
-- `swal_fallback`: `true | false`
-- `use_local_assets_toggle`: `true | false`
-- `local_assets_field_id`: option key used by the local-assets toggle
+## 3. Configuration
 
-Notes:
+### Options
 
-- If `register_menu` is `false`, host code must create its own menu/submenu and point callback to `$framework->render_page()`.
-- If `assets_url` is set, it has highest priority. Otherwise framework resolves URL by context.
-- `use_local_assets_toggle` only affects RL Options Framework UI libraries (SweetAlert2, Tippy). It does not change assets from other plugins/themes.
+| Option | Values | Description |
+|--------|--------|-------------|
+| `context` | `auto`, `plugin`, `theme` | Asset URL resolution strategy |
+| `register_menu` | `true`, `false` | Let framework register menu/submenu |
+| `sync_history` | `true`, `false` | Enable tab history sync |
+| `debug_level` | `error`, `warn`, `info`, `debug` | JS/PHP runtime logging level |
+| `swal_fallback` | `true`, `false` | Fallback to `window.alert` when SweetAlert fails |
+| `use_local_assets_toggle` | `true`, `false` | Show support toggle for framework-owned local/CDN assets |
+| `local_assets_field_id` | `string` | Option key used by local-assets toggle |
 
-## 3a. Declarative Dependencies and Async Providers (Opt-in)
+### Notes
 
-Each field can declare dependency and provider metadata without breaking existing static fields.
+- If `register_menu` is `false`, host code must wire menu callback to `$framework->render_page()`.
+- If `assets_url` is provided, it takes precedence over context-based resolution.
+- `use_local_assets_toggle` only affects RL Options Framework libraries, not unrelated plugin/theme assets.
 
-```php
-'country' => [
-    'id'      => 'country',
-    'type'    => 'select',
-    'label'   => __('Country', 'my-plugin'),
-    'options_provider' => [
-        'endpoint' => 'countries',
-    ],
-],
-'district' => [
-    'id'       => 'district',
-    'type'     => 'select',
-    'label'    => __('District', 'my-plugin'),
-    'depends_on' => ['country'],
-    'required_if' => [
-        ['field' => 'country', 'operator' => 'truthy'],
-    ],
-    'options_provider' => [
-        'endpoint' => 'country_subdivisions',
-        'params'   => ['country' => 'country'],
-    ],
-],
-'municipality' => [
-    'id'       => 'municipality',
-    'type'     => 'select',
-    'label'    => __('Municipality', 'my-plugin'),
-    'depends_on' => ['country', 'district'],
-    'required_if' => [
-        ['field' => 'district', 'operator' => 'truthy'],
-    ],
-    'options_provider' => [
-        'endpoint' => 'country_municipalities',
-        'params'   => [
-            'country' => 'country',
-            'subdivision' => 'district',
-        ],
-    ],
-],
-```
+---
 
-Supported field-level keys:
+## 4. Field Types
 
-- `depends_on` (`string[]`): declarative parent field IDs.
-- `visibility_rules` (`array`): conditional visibility rules (same grammar as `conditions`).
-- `options_provider` (`array`): async options source (`endpoint`, optional `action`, `params`, `mapping`).
-- `required_if` (`array`): declarative required conditions evaluated on change and save.
+### Type contract
 
-Behavior:
-
-- Runs without page reload.
-- Inline validation triggers on change.
-- Save is blocked when dependency/required/provider rules fail.
-- If async provider fails, field keeps existing local/static options.
-
-## 4. Field Type Contract
-
-| Type | Saved value | Notes |
+| Type | Saved Value | Notes |
 |------|-------------|-------|
 | `toggle` | `bool` | On/off switch |
-| `checkbox` | `bool` | Single checkbox with `text` label |
-| `select` | `string` | Requires `options` map |
-| `multiselect` | `string[]` | Checkboxes, requires `options` map |
-| `radio` | `string` | Requires `options` map |
-| `image_select` | `string` | Each option: `['src' => '...', 'label' => '...']` |
-| `text` | `string` | Standard text input |
-| `textarea` | `string` | Multi-line, `rows` optional |
-| `number` | `int\|float` | Use `min`, `max`, `step`; optional `suffix` |
-| `color` | `string` (hex) | WP Color Picker; default must be valid hex |
-| `image` | `string` (URL) | WP media uploader (single image) |
-| `country` | `string` (ISO2) | Country dropdown (all countries) — see §4a |
-| `state` | `string` | Subdivision dropdown for a fixed/linked country — see §4b |
-| `city` | `string` | Municipality dropdown for a fixed/linked country — see §4c |
-| `country_state_city` | `array` | Combined Country > State > City field — see §4d |
-| `date` | `string` (`Y-m-d`) | Native date input — see §4e |
-| `datetime` | `string` (`Y-m-d H:i`) | Calendar + time picker — see §4f |
-| `html` | — | Read-only HTML block; use `html` key |
+| `checkbox` | `bool` | Single checkbox with `text` |
+| `select` | `string` | Requires options map |
+| `multiselect` | `string[]` | Requires options map |
+| `radio` | `string` | Requires options map |
+| `image_select` | `string` | Option schema `['src','label']` |
+| `text` | `string` | Standard input |
+| `textarea` | `string` | Multi-line input |
+| `number` | `int|float` | Supports `min`, `max`, `step` |
+| `color` | `string` | Hex / rgb / rgba |
+| `image` | `string` | URL from media picker |
+| `country` | `string` | ISO2 country code |
+| `state` | `string` | Subdivision code/name key |
+| `city` | `string` | Municipality code/name key |
+| `country_state_city` | `array` | Combined location payload |
+| `date` | `string` | `Y-m-d` |
+| `datetime` | `string` | `Y-m-d H:i` |
+| `html` | n/a | Read-only HTML block |
 
-### §4a — `country` field
+### 4.1 `country` field
 
-Renders a country dropdown backed by normalized country reference data.
+#### What it is
+
+Single dropdown with all normalized countries.
+
+#### How to use
 
 ```php
 'country' => [
@@ -163,22 +135,30 @@ Renders a country dropdown backed by normalized country reference data.
 ],
 ```
 
-Saved format: `ISO2` code (example: `PT`, `ES`, `US`).
-
-### §4b — `state` field
-
-Renders a subdivision dropdown for a predefined country or a linked country field.
+#### Saved format
 
 ```php
-'state' => array(
-    'id'       => 'state_field',
-    'type'     => 'state',
-    'country'  => 'pt', // fixed ISO country
-    'label'    => __('Distrito', 'acro-manager'),
-),
+'PT' // ISO2 country code
 ```
 
-Alternative dynamic linkage:
+### 4.2 `state` field
+
+#### What it is
+
+Subdivision dropdown tied to either a fixed country or another country field.
+
+#### How to use (fixed country)
+
+```php
+'state' => [
+    'id'      => 'state_field',
+    'type'    => 'state',
+    'country' => 'pt',
+    'label'   => __('Distrito', 'acro-manager'),
+],
+```
+
+#### How to use (linked country field)
 
 ```php
 'state' => [
@@ -189,135 +169,112 @@ Alternative dynamic linkage:
 ],
 ```
 
-### §4c — `city` field
+### 4.3 `city` field
 
-Renders a municipality dropdown for a predefined country or linked country/subdivision fields.
+#### What it is
+
+Municipality dropdown tied to fixed or linked country/subdivision.
+
+#### How to use
 
 ```php
-'city' => array(
+'city' => [
     'id'      => 'city_field',
     'type'    => 'city',
-    'country' => 'pt', // fixed ISO country
+    'country' => 'pt',
     'label'   => __('Localidade', 'acro-manager'),
-),
+],
 ```
 
-### §4d — `country_state_city` field
+### 4.4 `country_state_city` field
 
-Combined listing field (Country > State > City), with customizable labels for each select.
+#### What it is
+
+Combined Country > State > City field rendered as three coordinated selects.
+
+#### How to use
 
 ```php
 'club_location' => [
     'id'            => 'club_location',
     'type'          => 'country_state_city',
     'label'         => __('Location', 'my-plugin'),
-    'country_label' => __('País', 'my-plugin'),
+    'country_label' => __('Pais', 'my-plugin'),
     'state_label'   => __('Distrito', 'my-plugin'),
     'city_label'    => __('Localidade', 'my-plugin'),
 ],
 ```
 
-Saved format:
+#### Saved format
 
 ```php
 [
-  'country' => 'PT',
-  'state'   => 'lisboa',
-  'city'    => 'sintra',
+    'country' => 'PT',
+    'state'   => 'lisboa',
+    'city'    => 'sintra',
 ]
 ```
 
-### §4e — `date` field
+### 4.5 `date` field
 
-Renders a native `<input type="date">`. The canonical saved value is a single string in `Y-m-d` format.
+#### What it is
+
+Native HTML date input.
+
+#### How to use
 
 ```php
-'club_founding_date' => array(
+'club_founding_date' => [
     'id'          => 'club_founding_date',
     'type'        => 'date',
-    'label'       => __( 'Data de Fundação', 'acro-manager' ),
-    'description' => __( 'Founding Date (YYYY-MM-DD)', 'acro-manager' ),
+    'label'       => __('Data de Fundacao', 'acro-manager'),
+    'description' => __('Founding Date (YYYY-MM-DD)', 'acro-manager'),
     'default'     => '2026-01-01',
-),
-```
-
-**Field options:**
-
-| Key | Type | Default | Description |
-|-----|------|---------|-------------|
-| `default` | `string` | `''` | Pre-fill value in `Y-m-d` format |
-| `required` | `bool` | `false` | Blocks save when empty |
-| `min` | `string` | `''` | Optional minimum date (`Y-m-d`) |
-| `max` | `string` | `''` | Optional maximum date (`Y-m-d`) |
-
-**Validation rules:**
-
-- If `required => true` and value is empty → validation error.
-- If a value is present it must match `Y-m-d` and be a valid calendar date.
-
-**Sanitization:**
-
-- Non-empty values are normalized to `Y-m-d`.
-- Empty string is stored as-is (allows clearing an optional field).
-- Invalid values fall back to the field `default` when one is provided, otherwise `''`.
-
-### §4f — `datetime` field
-
-Renders a WordPress **jQuery UI datepicker** calendar alongside a native `<input type="time">`. The canonical saved value is a single string in `Y-m-d H:i` format.
-
-```php
-'fields' => [
-    'launch_at' => [
-        'id'          => 'launch_at',
-        'type'        => 'datetime',
-        'label'       => __( 'Launch Date & Time', 'my-plugin' ),
-        'description' => __( 'Date the feature becomes active.', 'my-plugin' ),
-        'default'     => '2026-01-01 09:00',  // Y-m-d H:i
-        'required'    => false,
-        'time_step'   => 900,               // seconds between time options (default 60)
-    ],
 ],
 ```
 
-**Reading the saved value:**
-
-```php
-$raw = get_option('my_project_options')['launch_at'] ?? '';
-
-if ( $raw !== '' ) {
-    $timestamp = strtotime( $raw );              // Unix timestamp
-    $display   = date_i18n( get_option('date_format') . ' ' . get_option('time_format'), $timestamp );
-}
-```
-
-**Field options:**
+#### Field options
 
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
-| `default` | `string` | `''` | Pre-fill value in `Y-m-d H:i` format |
-| `required` | `bool` | `false` | Blocks save when empty |
-| `time_step` | `int` | `60` | Browser time-picker increment in seconds (min 60) |
-| `placeholder` | `string` | `'Select date'` | Visible hint in the date input |
+| `default` | `string` | `''` | Initial value in `Y-m-d` |
+| `required` | `bool` | `false` | Enforce non-empty |
+| `min` | `string` | `''` | Minimum `Y-m-d` |
+| `max` | `string` | `''` | Maximum `Y-m-d` |
 
-**Validation rules:**
+#### Behavior
 
-- If `required => true` and value is empty → validation error.
-- If a value is present it must match `Y-m-d H:i` and be a valid calendar date.
+- Strict regex validation: `^\d{4}-\d{2}-\d{2}$`.
+- Calendar date validity checked server-side.
+- Stored format is always `Y-m-d`.
 
-**Sanitization:**
+### 4.6 `datetime` field
 
-- Non-empty values are round-tripped through `strtotime()` and re-formatted as `Y-m-d H:i`.
-- Empty string is stored as-is (allows clearing an optional field).
-- Invalid values fall back to the field `default` when one is provided, otherwise `''`.
+#### What it is
 
-**Dependencies added automatically when the settings page loads:**
+jQuery UI datepicker + native time input.
 
-- `jquery-ui-datepicker` (bundled with WordPress)
-- `wp_localize_jquery_ui_datepicker()` is called for locale-aware month/day names and date strings
-- `wp-color-picker` was already enqueued
-- Datepicker popup visuals are provided by framework CSS (self-contained, no image sprite dependency)
+#### How to use
 
-### §4g — `image_select` schema
+```php
+'launch_at' => [
+    'id'          => 'launch_at',
+    'type'        => 'datetime',
+    'label'       => __('Launch Date & Time', 'my-plugin'),
+    'description' => __('Date the feature becomes active.', 'my-plugin'),
+    'default'     => '2026-01-01 09:00',
+    'required'    => false,
+    'time_step'   => 900,
+],
+```
+
+#### Behavior
+
+- Backward compatible with existing `Y-m-d H:i` values.
+- No migration needed for existing datetime fields.
+- Datepicker localization uses `wp_localize_jquery_ui_datepicker()`.
+
+### 4.7 `image_select` schema
 
 ```php
 'options' => [
@@ -326,40 +283,95 @@ if ( $raw !== '' ) {
 ]
 ```
 
-Invalid schema combinations are logged as warnings.
+---
 
-## 5. Cascading Validation and Save Blocking
+## 5. Declarative Dependencies and Async Providers
 
-- Validation runs on field change (`rl_options_framework_field_validate`) and on save.
-- Field-level errors are shown inline and save is blocked until fixed.
-- For provider-backed selects, submitted values must exist in resolved options.
-- `required_if` rules are evaluated server-side using current submitted form state.
+### What it is
 
-## 6. Global Country Reference Service
+Opt-in dependency engine for reactive field visibility/options/validation without reloading the page.
 
-The framework ships a global country reference layer with transient caching, source timeout, and graceful fallback.
+### Supported field keys
 
-- Base metadata keys: `code`, `name`, `region`, `capital`
-- Optional hierarchies: subdivisions and municipalities
-- Cache lifetime is effectively eternal by default (transient TTL `0`)
-- Data is re-fetched only when transient is cleared/expired or cached data is empty
-- Sources are pluggable via filters
+| Key | Type | Purpose |
+|-----|------|---------|
+| `depends_on` | `string[]` | Declares parent fields |
+| `visibility_rules` | `array` | Declarative visibility logic |
+| `options_provider` | `array` | Async options source config |
+| `required_if` | `array` | Conditional required rules |
 
-### REST Endpoints
+### Example
 
-- `GET /wp-json/rl-options/v1/countries`
-- `GET /wp-json/rl-options/v1/countries/{code}/subdivisions`
-- `GET /wp-json/rl-options/v1/countries/{code}/municipalities?subdivision=...`
+```php
+'country' => [
+    'id'    => 'country',
+    'type'  => 'country',
+],
+'district' => [
+    'id'          => 'district',
+    'type'        => 'state',
+    'country_field' => 'country',
+    'depends_on'  => ['country'],
+    'required_if' => [
+        ['field' => 'country', 'operator' => 'truthy'],
+    ],
+],
+'municipality' => [
+    'id'               => 'municipality',
+    'type'             => 'city',
+    'country_field'    => 'country',
+    'subdivision_field'=> 'district',
+    'depends_on'       => ['country', 'district'],
+],
+```
 
-### Helper Functions
+### Behavior
 
-- `rl_options_framework_get_countries()`
-- `rl_options_framework_get_country_subdivisions($country_code)`
-- `rl_options_framework_get_country_municipalities($country_code, $subdivision = '')`
+- Runs on change and on save.
+- Shows inline field errors.
+- Blocks save when dependency validation fails.
+- Falls back to static/local options if provider request fails.
 
-### Extensibility Hooks
+---
 
-Filters:
+## 6. Country Reference Service and API Layer
+
+### What it is
+
+Global geo reference service with normalized outputs for framework and external consumers.
+
+### Data model keys
+
+- `code`
+- `name`
+- `region`
+- `capital`
+
+### Caching behavior
+
+- Transient cache is effectively eternal by default (`TTL = 0`).
+- Data refreshes when transients are cleared or cache payload is empty.
+- Source timeout and graceful fallback are built-in.
+
+### REST endpoints
+
+| Endpoint | Method | Purpose |
+|----------|--------|---------|
+| `/wp-json/rl-options/v1/countries` | `GET` | Country list |
+| `/wp-json/rl-options/v1/countries/{code}/subdivisions` | `GET` | Country subdivisions |
+| `/wp-json/rl-options/v1/countries/{code}/municipalities?subdivision=...` | `GET` | Municipalities |
+
+### PHP helper functions
+
+```php
+rl_options_framework_get_countries();
+rl_options_framework_get_country_subdivisions('PT');
+rl_options_framework_get_country_municipalities('PT', 'lisboa');
+```
+
+### Extensibility hooks
+
+#### Filters
 
 - `rl_options_framework_country_reference_sources`
 - `rl_options_framework_country_reference_data`
@@ -367,32 +379,59 @@ Filters:
 - `rl_options_framework_country_municipalities`
 - `rl_options_framework_resolved_provider_options`
 
-Actions:
+#### Actions
 
 - `rl_options_framework_country_reference_warmed`
 - `rl_options_framework_field_dependency_resolved`
 
-## 7. Validation Behavior
+---
+
+## 7. Validation and Save UX
+
+### Validation behavior
 
 - Fields are optional by default.
-- `required => true` enables required validation.
-- Validation errors return structured metadata in AJAX responses:
-  - `field_id`
-  - `field_label`
-  - `tab_id`
-  - `section_id`
-  - `message`
+- `required => true` enforces required validation.
+- `required_if` adds dependency-aware required validation.
+- AJAX responses include field-level metadata (`field_id`, `field_label`, `tab_id`, `section_id`, `message`).
 
-## 8. Save UX and Resilience
+### Save behavior
 
 - AJAX save uses SweetAlert when available.
-- If SweetAlert is missing/fails and `swal_fallback` is enabled, framework falls back to `window.alert`.
-- On validation error, JS focuses the first invalid field and activates its tab/section.
+- If SweetAlert fails and `swal_fallback` is enabled, fallback is `window.alert`.
+- On validation errors, framework focuses invalid field and opens the relevant tab/section.
 
-## 9. Migration Note (Hook Naming)
+---
 
-If you previously used custom hook names like `my_plugin_settings_tabs`, migrate to:
+## 8. Security and Performance Notes
 
-- `my_plugin_options_framework_tabs` (where `my_plugin_options` is `option_name`)
+### Security
 
-The framework runtime only reads `{option_name}_framework_tabs`.
+- All AJAX endpoints validate nonce and user capability.
+- Incoming request params are sanitized before use.
+
+### Performance
+
+- Geo metadata is cached in transients.
+- Empty payloads are not persisted as long-lived cache values.
+- Remote source requests use timeout and fallback strategy.
+
+---
+
+## 9. Migration Notes
+
+### Hook naming
+
+Old custom naming:
+
+```text
+my_plugin_settings_tabs
+```
+
+Framework canonical naming:
+
+```text
+my_plugin_options_framework_tabs
+```
+
+The framework runtime reads only `{option_name}_framework_tabs`.

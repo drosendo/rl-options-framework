@@ -4,7 +4,7 @@ if (!defined('ABSPATH')) {
 	return;
 }
 
-class RL_Field_Country_State_City implements RL_Field_Interface
+class RL_Field_Country_State_City implements RL_Field_Interface, RL_Field_Processing_Interface
 {
 	public function type(): string
 	{
@@ -57,4 +57,93 @@ class RL_Field_Country_State_City implements RL_Field_Interface
 		echo '</select></div>';
 		echo '</div>';
 	}
+
+	public function sanitize(array $field, $value, array $context = [])
+	{
+		$raw_group = is_array($value) ? $value : [];
+		$country = sanitize_text_field((string) ($raw_group['country'] ?? ''));
+		$state = sanitize_text_field((string) ($raw_group['state'] ?? ''));
+		$city = sanitize_text_field((string) ($raw_group['city'] ?? ''));
+
+		$geo_callback = $context['geo_options_callback'] ?? null;
+		if (!is_callable($geo_callback)) {
+			return ['country' => '', 'state' => '', 'city' => ''];
+		}
+
+		$allowed_countries = array_keys(call_user_func($geo_callback, $field, 'country', $context['validation_context'] ?? []));
+		if (!in_array($country, $allowed_countries, true)) {
+			$country = '';
+		}
+
+		$allowed_states = array_keys(call_user_func($geo_callback, array_merge($field, ['country' => $country]), 'state', $context['validation_context'] ?? []));
+		if (!in_array($state, $allowed_states, true)) {
+			$state = '';
+		}
+
+		$allowed_cities = array_keys(call_user_func($geo_callback, array_merge($field, ['country' => $country, 'subdivision' => $state]), 'city', $context['validation_context'] ?? []));
+		if (!in_array($city, $allowed_cities, true)) {
+			$city = '';
+		}
+
+		return [
+			'country' => $country,
+			'state' => $state,
+			'city' => $city,
+		];
+	}
+
+	public function validate(array $field, $value, string &$error, array $context = []): bool
+	{
+		$field_label = $context['field_label'] ?? 'Field';
+		$text_domain = $context['text_domain'] ?? 'default';
+
+		$group = is_array($value) ? $value : [];
+		$country = sanitize_text_field((string) ($group['country'] ?? ''));
+		$state = sanitize_text_field((string) ($group['state'] ?? ''));
+		$city = sanitize_text_field((string) ($group['city'] ?? ''));
+		$required = !empty($field['required']);
+
+		$geo_callback = $context['geo_options_callback'] ?? null;
+		if (!is_callable($geo_callback)) {
+			$error = sprintf(__('%s has an invalid geographic value.', $text_domain), $field_label);
+			return false;
+		}
+
+		if ($required && $country === '') {
+			$error = sprintf(__('%s requires a country selection.', $text_domain), $field_label);
+			return false;
+		}
+
+		if ($country !== '') {
+			$allowed_countries = array_keys(call_user_func($geo_callback, $field, 'country', $context['validation_context'] ?? []));
+			if (!in_array($country, $allowed_countries, true)) {
+				$error = sprintf(__('%s has an invalid country.', $text_domain), $field_label);
+				return false;
+			}
+		}
+
+		if ($state !== '') {
+			$allowed_states = array_keys(call_user_func($geo_callback, array_merge($field, ['country' => $country]), 'state', $context['validation_context'] ?? []));
+			if (!in_array($state, $allowed_states, true)) {
+				$error = sprintf(__('%s has an invalid state/district.', $text_domain), $field_label);
+				return false;
+			}
+		}
+
+		if ($city !== '') {
+			$allowed_cities = array_keys(call_user_func($geo_callback, array_merge($field, ['country' => $country, 'subdivision' => $state]), 'city', $context['validation_context'] ?? []));
+			if (!in_array($city, $allowed_cities, true)) {
+				$error = sprintf(__('%s has an invalid city/municipality.', $text_domain), $field_label);
+				return false;
+			}
+		}
+
+		return true;
+	}
+
+	public function prepare_for_validation(array $field, $value, array $context = [])
+	{
+		return $value;
+	}
 }
+

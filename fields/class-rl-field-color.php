@@ -4,7 +4,7 @@ if (!defined('ABSPATH')) {
 	return;
 }
 
-class RL_Field_Color implements RL_Field_Interface
+class RL_Field_Color implements RL_Field_Interface, RL_Field_Processing_Interface
 {
 	public function type(): string
 	{
@@ -22,5 +22,58 @@ class RL_Field_Color implements RL_Field_Interface
 			esc_attr((string) $value),
 			esc_attr((string) ($field['default'] ?? ''))
 		);
+	}
+
+	public function sanitize(array $field, $value, array $context = [])
+	{
+		if ($value === '' || $value === null) {
+			return '';
+		}
+
+		$raw = trim((string) $value);
+		$standard_hex = sanitize_hex_color($raw);
+		if ($standard_hex) {
+			return $standard_hex;
+		}
+
+		if (preg_match('/^#([0-9a-fA-F]{8})$/', $raw)) {
+			return $raw;
+		}
+
+		if (preg_match('/^rgba?\([^\)]+\)$/i', $raw)) {
+			return $raw;
+		}
+
+		return $field['default'] ?? '';
+	}
+
+	public function validate(array $field, $value, string &$error, array $context = []): bool
+	{
+		$field_label = $context['field_label'] ?? 'Field';
+		$text_domain = $context['text_domain'] ?? 'default';
+
+		if ($value === '' || $value === null) {
+			return true;
+		}
+
+		$raw = (string) $value;
+		if (preg_match('/^#([A-Fa-f0-9]{3}|[A-Fa-f0-9]{6}|[A-Fa-f0-9]{8})$/', $raw)) {
+			return true;
+		}
+
+		if (preg_match('/^rgba?\([^\)]+\)$/i', $raw)) {
+			return true;
+		}
+
+		$error = sprintf(
+			__('%s must be a valid hex color.', $text_domain),
+			$field_label
+		);
+		return false;
+	}
+
+	public function prepare_for_validation(array $field, $value, array $context = [])
+	{
+		return $value;
 	}
 }

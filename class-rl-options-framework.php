@@ -138,7 +138,7 @@ final class RL_Options_Framework
 	 *
 	 * @var array
 	 */
-	private array $config = [];
+	public array $config = [];
 
 	/**
 	 * Base URL to the framework assets.
@@ -181,6 +181,20 @@ final class RL_Options_Framework
 	 * @var RL_Field_Registry|null
 	 */
 	private ?RL_Field_Registry $field_registry = null;
+
+	/**
+	 * Render service instance for page rendering logic.
+	 *
+	 * @var RL_Options_Render_Service|null
+	 */
+	private ?RL_Options_Render_Service $render_service = null;
+
+	/**
+	 * Admin handler service instance for request handlers.
+	 *
+	 * @var RL_Options_Admin_Handler|null
+	 */
+	private ?RL_Options_Admin_Handler $admin_handler = null;
 
 	/**
 	 * Constructor.
@@ -268,6 +282,12 @@ final class RL_Options_Framework
 		$this->field_registry = new RL_Field_Registry();
 		RL_Field_Bootstrap::register_defaults($this->field_registry);
 
+		// Initialize render service for page rendering logic.
+		$this->render_service = new RL_Options_Render_Service($this);
+
+		// Initialize admin handler service for request handlers.
+		$this->admin_handler = new RL_Options_Admin_Handler($this);
+
 		// Register admin menu unless host project opts to fully control menu wiring.
 		if (!empty($this->config['register_menu'])) {
 			add_action('admin_menu', [$this, 'register_menu'], 60);
@@ -310,6 +330,33 @@ final class RL_Options_Framework
 	public function presets(): ?RL_Field_Presets
 	{
 		return $this->presets;
+	}
+
+	/**
+	 * Get configuration value by key.
+	 *
+	 * @param string $key     Config key.
+	 * @param mixed  $default Default value if key not found.
+	 * @return mixed Configuration value.
+	 */
+	public function get_config(string $key = '', $default = null)
+	{
+		if ($key === '') {
+			return $this->config;
+		}
+		return $this->config[$key] ?? $default;
+	}
+
+	/**
+	 * Set the validation context (current form input state).
+	 *
+	 * Used by field validators to access related field values.
+	 *
+	 * @param array $context Input context array.
+	 */
+	public function set_validation_context(array $context): void
+	{
+		$this->validation_context = $context;
 	}
 
 	/**
@@ -368,6 +415,8 @@ final class RL_Options_Framework
 
 	/**
 	 * Access field registry.
+	 *
+	 * @return RL_Field_Registry|null
 	 */
 	public function field_registry(): ?RL_Field_Registry
 	{
@@ -686,350 +735,42 @@ final class RL_Options_Framework
 
 	/**
 	 * Handle options save submissions with validation.
+	 *
+	 * Delegates to admin handler service.
 	 */
 	public function handle_save(): void
 	{
-		RL_Logger::debug('========== SAVE HANDLER START ==========');
-
-		if (!current_user_can($this->config['capability'])) {
-			RL_Logger::error('User does not have required capability.', ['capability' => $this->config['capability']]);
-			wp_die(esc_html__('You are not allowed to manage these settings.', $this->config['text_domain']));
-		}
-
-		$nonce_action = $this->config['page_slug'] . '_save_options';
-		$nonce_field = $this->config['form_field_prefix'] . '_nonce';
-		check_admin_referer($nonce_action, $nonce_field);
-		RL_Logger::debug('Nonce verified successfully.');
-
-		$fields_map = $this->get_fields_index();
-		RL_Logger::debug('Total fields registered: ' . count($fields_map));
-
-		$input = wp_unslash($_POST[$this->config['form_field_prefix']] ?? []);
-		RL_Logger::debug('Raw POST data keys: ' . implode(', ', array_keys($_POST)));
-		RL_Logger::debug('Form field prefix: ' . $this->config['form_field_prefix']);
-
-		if (!is_array($input)) {
-			RL_Logger::warn('Input is not an array; defaulting to empty array.');
-			$input = [];
-		}
-		$this->validation_context = $input;
-
-		RL_Logger::debug('Submitted field count: ' . count($input));
-		RL_Logger::debug('Submitted fields: ' . implode(', ', array_keys($input)));
-
-		$saved = get_option($this->config['option_name'], []);
-		if (!is_array($saved)) {
-			$saved = [];
-		}
-		RL_Logger::debug('Existing saved fields: ' . count($saved));
-
-		$validation_errors = [];
-		$field_errors = [];
-
-		foreach ($fields_map as $field_id => $field) {
-			$value = $input[$field_id] ?? null;
-			$value = $this->prepare_value_for_validation($field, $value);
-
-			if (in_array($field_id, ['slider_position', 'gallery_type'], true)) {
-				RL_Logger::debug(sprintf(
-					'Processing %s: value="%s", type=%s',
-					$field_id,
-					$value,
-					$field['type'] ?? 'unknown'
-				));
-			}
-
-			$error = '';
-
-			// Validate field
-			if (!$this->validate_field_value($field, $value, $error)) {
-				$validation_errors[$field_id] = $error;
-				$field_errors[$field_id] = [
-					'field_id' => $field_id,
-					'field_label' => $this->get_field_label($field),
-					'tab_id' => $field['__tab_id'] ?? '',
-					'section_id' => $field['__section_id'] ?? '',
-					'message' => $error,
-				];
-				RL_Logger::warn('Validation failed for field.', ['field_id' => $field_id, 'error' => $error]);
-				continue;
-			}
-
-			// Sanitize and save
-			$sanitized_value = $this->sanitize_field_value($field, $value);
-			$saved[$field_id] = $sanitized_value;
-
-			if (in_array($field_id, ['slider_position', 'gallery_type'], true)) {
-				RL_Logger::debug(sprintf(
-					'Sanitized %s: "%s" -> "%s"',
-					$field_id,
-					$value,
-					$sanitized_value
-				));
-			}
-		}
-
-		// If validation errors, redirect with error message
-		if (!empty($validation_errors)) {
-			$error_message = implode(' ', array_values($validation_errors));
-			RL_Logger::warn('Validation errors found.', ['message' => $error_message]);
-			$message_param = $this->config['form_field_prefix'] . '_message';
-			$error_param = $this->config['form_field_prefix'] . '_error';
-			wp_safe_redirect(
-				add_query_arg(
-					[
-						'page' => $this->config['page_slug'],
-						$message_param => 'error',
-						$error_param => rawurlencode($error_message),
-					],
-					admin_url('admin.php')
-				)
-			);
-			exit;
-		}
-
-		$update_result = update_option($this->config['option_name'], $saved);
-		RL_Logger::info('update_option result: ' . ($update_result ? 'SUCCESS' : 'FAILED (or unchanged)'));
-		RL_Logger::info('Total fields saved: ' . count($saved));
-
-		// Fire generic post-save hooks for host integrations.
-		do_action($this->config['option_name'] . '_settings_saved', $saved);
-		do_action('rl_options_framework_settings_saved', $saved, $this->config, $this);
-
-		// Verify what was actually saved
-		$verification = get_option($this->config['option_name']);
-		if (isset($verification['slider_position'])) {
-			RL_Logger::debug('Verified slider_position in DB: "' . $verification['slider_position'] . '"');
-		}
-		RL_Logger::debug('========== SAVE HANDLER END ==========');
-
-		$message_param = $this->config['form_field_prefix'] . '_message';
-		wp_safe_redirect(
-			add_query_arg(
-				[
-					'page' => $this->config['page_slug'],
-					$message_param => 'saved',
-				],
-				admin_url('admin.php')
-			)
-		);
-		exit;
+		$this->admin_handler->handle_save();
 	}
 
 	/**
 	 * Handle AJAX options save submissions.
+	 *
+	 * Delegates to admin handler service.
 	 */
 	public function handle_ajax_save(): void
 	{
-		RL_Logger::debug('========== AJAX SAVE HANDLER CALLED ==========');
-		RL_Logger::debug('POST data keys: ' . implode(', ', array_keys($_POST)));
-		RL_Logger::debug('Expected nonce action: ' . $this->config['ajax_action'] . '_nonce');
-		RL_Logger::debug('Nonce value from POST: ' . ($_POST['nonce'] ?? 'NOT SET'));
-		RL_Logger::debug('Action from POST: ' . ($_POST['action'] ?? 'NOT SET'));
-
-		// Verify nonce (accept AJAX nonce and fallback to form nonce)
-		$ajax_nonce_action = $this->config['ajax_action'] . '_nonce';
-		$form_nonce_action = $this->config['page_slug'] . '_save_options';
-		$form_nonce_field = $this->config['form_field_prefix'] . '_nonce';
-
-		$ajax_nonce = isset($_POST['nonce']) ? sanitize_text_field(wp_unslash($_POST['nonce'])) : '';
-		$form_nonce = isset($_POST[$form_nonce_field]) ? sanitize_text_field(wp_unslash($_POST[$form_nonce_field])) : '';
-
-		$ajax_nonce_valid = !empty($ajax_nonce) && wp_verify_nonce($ajax_nonce, $ajax_nonce_action);
-		$form_nonce_valid = !empty($form_nonce) && wp_verify_nonce($form_nonce, $form_nonce_action);
-
-		RL_Logger::debug('AJAX nonce valid: ' . ($ajax_nonce_valid ? 'yes' : 'no'));
-		RL_Logger::debug('Form nonce valid: ' . ($form_nonce_valid ? 'yes' : 'no'));
-
-		if (!$ajax_nonce_valid && !$form_nonce_valid) {
-			wp_send_json_error([
-				'message' => __('Security check failed. Please refresh the page and try again.', $this->config['text_domain']),
-			], 403);
-		}
-
-		// Check permissions
-		if (!current_user_can($this->config['capability'])) {
-			wp_send_json_error([
-				'message' => __('You are not allowed to manage these settings.', $this->config['text_domain']),
-			]);
-		}
-
-		RL_Logger::debug('========== AJAX SAVE START ==========');
-
-		$fields_map = $this->get_fields_index();
-		RL_Logger::debug('Total fields registered: ' . count($fields_map));
-
-		$input = wp_unslash($_POST[$this->config['form_field_prefix']] ?? []);
-		RL_Logger::debug('Submitted field count: ' . count($input));
-
-		if (!is_array($input)) {
-			RL_Logger::warn('Input is not an array.');
-			$input = [];
-		}
-		$this->validation_context = $input;
-
-		$saved = get_option($this->config['option_name'], []);
-		if (!is_array($saved)) {
-			$saved = [];
-		}
-
-		$validation_errors = [];
-		$field_errors = [];
-
-		foreach ($fields_map as $field_id => $field) {
-			$value = $input[$field_id] ?? null;
-			$value = $this->prepare_value_for_validation($field, $value);
-
-			// Debug specific fields
-			if (in_array($field_id, ['slider_position', 'gallery_type'], true)) {
-				RL_Logger::debug(sprintf(
-					'AJAX Processing %s: value="%s", type=%s',
-					$field_id,
-					$value,
-					$field['type'] ?? 'unknown'
-				));
-			}
-
-			$error = '';
-
-			// Validate field
-			if (!$this->validate_field_value($field, $value, $error)) {
-				$validation_errors[$field_id] = $error;
-				$field_errors[$field_id] = [
-					'field_id' => $field_id,
-					'field_label' => $this->get_field_label($field),
-					'tab_id' => $field['__tab_id'] ?? '',
-					'section_id' => $field['__section_id'] ?? '',
-					'message' => $error,
-				];
-				RL_Logger::warn('AJAX validation failed for field.', ['field_id' => $field_id, 'error' => $error]);
-				continue;
-			}
-
-			// Sanitize and save
-			$sanitized_value = $this->sanitize_field_value($field, $value);
-			$saved[$field_id] = $sanitized_value;
-
-			if (in_array($field_id, ['slider_position', 'gallery_type'], true)) {
-				RL_Logger::debug(sprintf(
-					'AJAX Sanitized %s: "%s" -> "%s"',
-					$field_id,
-					$value,
-					$sanitized_value
-				));
-			}
-		}
-
-		// If validation errors, return error
-		if (!empty($validation_errors)) {
-			RL_Logger::warn('AJAX validation errors.', $validation_errors);
-			wp_send_json_error([
-				'message' => implode(' ', array_values($validation_errors)),
-				'errors' => $validation_errors,
-				'field_errors' => $field_errors,
-			]);
-		}
-
-		$update_result = update_option($this->config['option_name'], $saved);
-		RL_Logger::info('AJAX update_option result: ' . ($update_result ? 'SUCCESS' : 'FAILED (or unchanged)'));
-		RL_Logger::info('Total fields saved: ' . count($saved));
-
-		// Fire generic post-save hooks for host integrations.
-		do_action($this->config['option_name'] . '_settings_saved', $saved);
-		do_action('rl_options_framework_settings_saved', $saved, $this->config, $this);
-
-		// Verify what was actually saved
-		$verification = get_option($this->config['option_name']);
-		if (isset($verification['slider_position'])) {
-			RL_Logger::debug('AJAX verified slider_position in DB: "' . $verification['slider_position'] . '"');
-		}
-		RL_Logger::debug('========== AJAX SAVE END ==========');
-
-		wp_send_json_success([
-			'message' => __('Settings saved successfully.', $this->config['text_domain']),
-			'saved' => count($saved),
-		]);
+		$this->admin_handler->handle_ajax_save();
 	}
 
 	/**
 	 * Resolve async options for a single field.
+	 *
+	 * Delegates to admin handler service.
 	 */
 	public function handle_ajax_field_options(): void
 	{
-		$nonce = isset($_POST['nonce']) ? sanitize_text_field(wp_unslash($_POST['nonce'])) : '';
-		if (empty($nonce) || !wp_verify_nonce($nonce, $this->config['ajax_action'] . '_nonce')) {
-			wp_send_json_error(['message' => __('Security check failed.', $this->config['text_domain'])], 403);
-		}
-
-		if (!current_user_can($this->config['capability'])) {
-			wp_send_json_error(['message' => __('You are not allowed to perform this action.', $this->config['text_domain'])], 403);
-		}
-
-		$field_id = isset($_POST['field_id']) ? sanitize_key(wp_unslash($_POST['field_id'])) : '';
-		$current_state = wp_unslash($_POST['current_state'] ?? []);
-		if (!is_array($current_state)) {
-			$current_state = [];
-		}
-
-		$fields_map = $this->get_fields_index();
-		if ($field_id === '' || empty($fields_map[$field_id])) {
-			wp_send_json_error(['message' => __('Unknown field.', $this->config['text_domain'])], 400);
-		}
-
-		$field = $fields_map[$field_id];
-		$options = $this->resolve_field_provider_options($field, $current_state, true);
-
-		wp_send_json_success([
-			'field_id' => $field_id,
-			'options' => $options,
-		]);
+		$this->admin_handler->handle_ajax_field_options();
 	}
 
 	/**
 	 * Validate one field on change (inline validation endpoint).
+	 *
+	 * Delegates to admin handler service.
 	 */
 	public function handle_ajax_field_validate(): void
 	{
-		$nonce = isset($_POST['nonce']) ? sanitize_text_field(wp_unslash($_POST['nonce'])) : '';
-		if (empty($nonce) || !wp_verify_nonce($nonce, $this->config['ajax_action'] . '_nonce')) {
-			wp_send_json_error(['message' => __('Security check failed.', $this->config['text_domain'])], 403);
-		}
-
-		if (!current_user_can($this->config['capability'])) {
-			wp_send_json_error(['message' => __('You are not allowed to perform this action.', $this->config['text_domain'])], 403);
-		}
-
-		$field_id = isset($_POST['field_id']) ? sanitize_key(wp_unslash($_POST['field_id'])) : '';
-		$input = wp_unslash($_POST[$this->config['form_field_prefix']] ?? []);
-		if (!is_array($input)) {
-			$input = [];
-		}
-
-		$fields_map = $this->get_fields_index();
-		if ($field_id === '' || empty($fields_map[$field_id])) {
-			wp_send_json_error(['message' => __('Unknown field.', $this->config['text_domain'])], 400);
-		}
-
-		$field = $fields_map[$field_id];
-		$value = $input[$field_id] ?? null;
-		$value = $this->prepare_value_for_validation($field, $value);
-		$this->validation_context = $input;
-
-		$error = '';
-		$is_valid = $this->validate_field_value($field, $value, $error);
-
-		if ($is_valid) {
-			wp_send_json_success([
-				'field_id' => $field_id,
-				'valid' => true,
-			]);
-		}
-
-		wp_send_json_error([
-			'field_id' => $field_id,
-			'valid' => false,
-			'message' => $error,
-		]);
+		$this->admin_handler->handle_ajax_field_validate();
 	}
 
 	/**
@@ -1196,7 +937,7 @@ final class RL_Options_Framework
 	 *
 	 * @return array<int,array{value:string,label:string}>
 	 */
-	private function resolve_field_provider_options(array $field, array $state = [], bool $fallback_static = true): array
+	public function resolve_field_provider_options(array $field, array $state = [], bool $fallback_static = true): array
 	{
 		$provider = $field['options_provider'] ?? null;
 		if (!is_array($provider)) {
@@ -1264,7 +1005,7 @@ final class RL_Options_Framework
 	 *
 	 * @return array<string,string>
 	 */
-	private function get_geo_field_options(array $field, string $type, array $state = []): array
+	public function get_geo_field_options(array $field, string $type, array $state = []): array
 	{
 		$out = [];
 		$type = strtolower($type);
@@ -1642,95 +1383,9 @@ final class RL_Options_Framework
 	 */
 	public function render_page(): void
 	{
-		$tabs = $this->get_tabs();
-
-		// Filter tabs based on show_if conditions
-		$options = get_option($this->config['option_name'], []);
-		if (!is_array($options)) {
-			$options = [];
+		if ($this->render_service) {
+			$this->render_service->render_page();
 		}
-		$tabs = $this->filter_tabs_by_conditions($tabs, $options);
-
-		$current_tab = $this->get_current_tab_slug($tabs);
-		$header_meta_html = apply_filters('rl_options_framework_header_meta_html', '', $this->config, $this);
-		?>
-		<div class="wrap rl-options-page">
-			<div class="rl-page-header">
-				<h1><?php echo esc_html($this->config['page_title']); ?></h1>
-				<?php if (!empty($header_meta_html)): ?>
-					<div class="rl-page-header-meta">
-						<?php echo wp_kses_post($header_meta_html); ?>
-					</div>
-				<?php endif; ?>
-			</div>
-
-			<?php if (empty($tabs)): ?>
-				<div class="notice notice-warning">
-					<p><?php esc_html_e('No settings tabs have been registered yet.', $this->config['text_domain']); ?></p>
-					<p><?php printf(esc_html__('Use the %s filter to add settings tabs.', $this->config['text_domain']), '<code>' . esc_html($this->config['option_name'] . '_framework_tabs') . '</code>'); ?>
-					</p>
-				</div>
-				<?php return; ?>
-			<?php endif; ?>
-
-			<?php if (!empty($tabs)): ?>
-				<nav class="nav-tab-wrapper" role="tablist">
-					<?php foreach ($tabs as $slug => $tab): ?>
-						<?php
-						$active = $slug === $current_tab ? ' nav-tab-active' : '';
-						$hidden = !empty($tab['_hidden']) ? ' style="display:none;"' : '';
-						$tab_conditions = !empty($tab['show_if']) ? ' data-tab-conditions=\'' . esc_attr(wp_json_encode($tab['show_if'])) . '\'' : '';
-						?>
-						<a class="nav-tab<?php echo esc_attr($active); ?>" href="<?php echo esc_url($this->get_tab_url($slug)); ?>"
-							data-rl-tab="<?php echo esc_attr($slug); ?>" <?php echo $tab_conditions; ?> 				<?php echo $hidden; ?>>
-							<?php echo esc_html($tab['label']); ?>
-						</a>
-					<?php endforeach; ?>
-				</nav>
-			<?php endif; ?>
-
-			<form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" novalidate>
-				<input type="hidden" name="action" value="<?php echo esc_attr($this->config['page_slug'] . '_save'); ?>" />
-				<?php
-				$nonce_action = $this->config['page_slug'] . '_save_options';
-				$nonce_field = $this->config['form_field_prefix'] . '_nonce';
-				wp_nonce_field($nonce_action, $nonce_field);
-				?>
-				<div class="rl-tab-panels">
-					<?php foreach ($tabs as $slug => $tab): ?>
-						<?php
-						$panel_active = $slug === $current_tab ? ' is-active' : '';
-						$hidden = !empty($tab['_hidden']) ? ' style="display:none;"' : '';
-						?>
-						<section class="rl-tab-panel<?php echo esc_attr($panel_active); ?>"
-							data-rl-panel="<?php echo esc_attr($slug); ?>" <?php echo $hidden; ?>>
-							<?php
-							if (!empty($tab['description'])) {
-								echo '<p class="rl-tab-description">' . wp_kses_post($tab['description']) . '</p>';
-							}
-
-							if (!empty($tab['sections']) && count($tab['sections']) > 1):
-								// Multiple sections - render sidebar navigation
-								$this->render_panel_with_sidebar($tab, $options);
-							elseif (!empty($tab['sections'])):
-								// Single section - render directly
-								foreach ($tab['sections'] as $section):
-									$this->render_section($section, $options, false);
-								endforeach;
-							endif;
-							?>
-						</section>
-					<?php endforeach; ?>
-				</div>
-
-				<div class="rl-submit-bar">
-					<button type="submit" class="button button-primary">
-						<?php esc_html_e('Save changes', $this->config['text_domain']); ?>
-					</button>
-				</div>
-			</form>
-		</div>
-		<?php
 	}
 
 	/**
@@ -1738,42 +1393,14 @@ final class RL_Options_Framework
 	 *
 	 * @param array $tab     Tab configuration.
 	 * @param array $options Current options.
+	 * @deprecated Use render service instead.
 	 */
 	private function render_panel_with_sidebar(array $tab, array $options): void
 	{
-		if (empty($tab['sections'])) {
-			return;
+		// Delegated to render service - kept for internal compatibility
+		if ($this->render_service) {
+			$this->render_service->render_panel_with_sidebar($tab, $options);
 		}
-
-		$current_section = isset($_GET['section']) ? sanitize_key(wp_unslash($_GET['section'])) : key($tab['sections']);
-
-		?>
-		<div class="rl-sidebar-layout">
-			<div class="rl-sidebar">
-				<ul class="rl-sidebar-menu">
-					<?php foreach ($tab['sections'] as $section_id => $section): ?>
-						<?php $active_class = $section_id === $current_section ? ' rl-sidebar-active' : ''; ?>
-						<li>
-							<a href="#<?php echo esc_attr($section_id); ?>"
-								class="rl-sidebar-link<?php echo esc_attr($active_class); ?>"
-								data-section="<?php echo esc_attr($section_id); ?>">
-								<?php echo esc_html($section['title'] ?? ucwords(str_replace('_', ' ', $section_id))); ?>
-							</a>
-						</li>
-					<?php endforeach; ?>
-				</ul>
-			</div>
-			<div class="rl-content">
-				<?php foreach ($tab['sections'] as $section_id => $section): ?>
-					<?php $content_active = $section_id === $current_section ? ' is-active' : ''; ?>
-					<div class="rl-section-content<?php echo esc_attr($content_active); ?>"
-						data-section-content="<?php echo esc_attr($section_id); ?>">
-						<?php $this->render_section($section, $options, true); ?>
-					</div>
-				<?php endforeach; ?>
-			</div>
-		</div>
-		<?php
 	}
 
 	/**
@@ -1782,43 +1409,14 @@ final class RL_Options_Framework
 	 * @param array<string,mixed> $section    Section definition.
 	 * @param array               $options    Current option values.
 	 * @param bool                $in_sidebar Whether this section is in a sidebar layout.
+	 * @deprecated Use render service instead.
 	 */
 	private function render_section(array $section, array $options, bool $in_sidebar = false): void
 	{
-		$is_accordion = !empty($section['accordion']) && !$in_sidebar;
-		$section_id = $section['id'];
-
-		$section_classes = ['rl-section'];
-		if ($is_accordion) {
-			$section_classes[] = 'is-accordion';
+		// Delegated to render service - kept for internal compatibility
+		if ($this->render_service) {
+			$this->render_service->render_section($section, $options, $in_sidebar);
 		}
-
-		?>
-		<div class="<?php echo esc_attr(implode(' ', $section_classes)); ?>"
-			data-rl-section="<?php echo esc_attr($section_id); ?>">
-			<?php if ($is_accordion): ?>
-				<button type="button" class="rl-accordion-toggle" aria-expanded="false">
-					<span><?php echo esc_html($section['title']); ?></span>
-					<span class="dashicons dashicons-arrow-down-alt2"></span>
-				</button>
-				<div class="rl-accordion-content">
-					<?php $this->render_section_inner($section, $options); ?>
-				</div>
-			<?php else: ?>
-				<?php if (!$in_sidebar || !empty($section['title'])): ?>
-					<header class="rl-section-header">
-						<h2><?php echo esc_html($section['title']); ?></h2>
-						<?php if (!empty($section['description'])): ?>
-							<p class="description"><?php echo wp_kses_post($section['description']); ?></p>
-						<?php endif; ?>
-					</header>
-				<?php endif; ?>
-				<div class="rl-section-body">
-					<?php $this->render_section_inner($section, $options); ?>
-				</div>
-			<?php endif; ?>
-		</div>
-		<?php
 	}
 
 	/**
@@ -1826,20 +1424,13 @@ final class RL_Options_Framework
 	 *
 	 * @param array $section Section definition.
 	 * @param array $options Stored options.
+	 * @deprecated Use render service instead.
 	 */
 	private function render_section_inner(array $section, array $options): void
 	{
-		if (empty($section['fields'])) {
-			echo '<p class="description">' . esc_html__('No settings available for this section yet.', $this->config['text_domain']) . '</p>';
-			return;
-		}
-
-		foreach ($section['fields'] as $field_key => $field) {
-			// Ensure field has an ID (use key as fallback)
-			if (empty($field['id'])) {
-				$field['id'] = $field_key;
-			}
-			$this->render_field($field, $options, 0);
+		// Delegated to render service - kept for internal compatibility
+		if ($this->render_service) {
+			$this->render_service->render_section_inner($section, $options);
 		}
 	}
 
@@ -1848,253 +1439,30 @@ final class RL_Options_Framework
 	 *
 	 * @param array $field   Field configuration.
 	 * @param array $options Stored options.
+	 * @deprecated Use render service instead.
 	 */
 	private function render_field(array $field, array $options, int $level = 0): void
 	{
-		// Ensure field has required properties
-		if (empty($field['id']) || empty($field['type'])) {
-			return; // Skip invalid fields
-		}
-
-		$field_id = $field['id'];
-		$field_type = $field['type'];
-		$field_label = $field['label'] ?? '';
-		$field_label = $this->normalize_field_label((string) $field_label);
-		$field_desc = $field['description'] ?? $field['desc'] ?? '';
-		$field_classes = ['rl-field', 'rl-field-' . $field_type];
-
-		$field_value = $options[$field_id] ?? ($field['default'] ?? null);
-
-		$data_attrs = '';
-		$visibility_rules = $field['visibility_rules'] ?? ($field['conditions'] ?? []);
-		if (!empty($visibility_rules) && is_array($visibility_rules)) {
-			$data_attrs .= sprintf(
-				' data-conditions="%s" data-visibility-rules="%s"',
-				esc_attr(wp_json_encode($visibility_rules)),
-				esc_attr(wp_json_encode($visibility_rules))
-			);
-			$field_classes[] = 'has-conditions';
-		}
-
-		if (!empty($field['depends_on']) && is_array($field['depends_on'])) {
-			$data_attrs .= sprintf(
-				' data-depends-on="%s"',
-				esc_attr(wp_json_encode(array_values($field['depends_on'])))
-			);
-			$field_classes[] = 'has-dependencies';
-		}
-
-		if (!empty($field['options_provider']) && is_array($field['options_provider'])) {
-			$data_attrs .= sprintf(
-				' data-options-provider="%s"',
-				esc_attr(wp_json_encode($field['options_provider']))
-			);
-			$field_classes[] = 'has-options-provider';
-		}
-
-		if (!empty($field['required_if']) && is_array($field['required_if'])) {
-			$data_attrs .= sprintf(
-				' data-required-if="%s"',
-				esc_attr(wp_json_encode($field['required_if']))
-			);
-		}
-
-		if (!empty($field['width'])) {
-			$field_classes[] = 'rl-field-width-' . preg_replace('/[^a-z0-9_\-]/', '', $field['width']);
-		}
-
-		// Add indent classes if specified or inherited from nesting
-		$indent_level = null;
-		if (isset($field['indent_level'])) {
-			$indent_level = max(0, (int) $field['indent_level']);
-		} elseif (!empty($field['indent'])) {
-			$indent_level = max(1, $level);
-		} else {
-			$indent_level = max(0, $level);
-		}
-
-		if ($indent_level > 0) {
-			$field_classes[] = 'rl-field-indented';
-			$field_classes[] = 'rl-field-indent-level-' . $indent_level;
-		}
-
-		printf(
-			'<div class="%1$s" data-field-id="%2$s"%3$s>',
-			esc_attr(implode(' ', $field_classes)),
-			esc_attr((string) $field_id),
-			$data_attrs
-		);
-
-		if (!empty($field_label)) {
-			printf(
-				'<label class="rl-field-label" for="%1$s">%2$s',
-				esc_attr($this->get_input_id($field_id)),
-				esc_html($field_label)
-			);
-			if (!empty($field_desc)) {
-				$tooltip_desc = $this->format_tooltip_content((string) $field_desc);
-
-				printf(
-					' <span class="rl-field-tooltip" data-tippy-content="%s"><span class="dashicons dashicons-info"></span></span>',
-					esc_attr($tooltip_desc)
-				);
-			}
-			echo '</label>';
-		}
-
-		echo '<div class="rl-field-control">';
-		$this->render_field_control($field, $field_value);
-		echo '</div>';
-		echo '<div class="rl-field-inline-error" aria-live="polite" style="display:none;"></div>';
-
-		echo '</div>'; // Close .rl-field
-
-		// Render nested subfields (if provided) with automatic indentation
-		// These render as siblings, not children of the parent field wrapper
-		if (!empty($field['fields']) && is_array($field['fields'])) {
-			// Sort children by priority if associative
-			$children = $field['fields'];
-			uasort(
-				$children,
-				static function (array $a, array $b): int {
-					return ($a['priority'] ?? 10) <=> ($b['priority'] ?? 10);
-				}
-			);
-
-			foreach ($children as $child_key => $child_field) {
-				if (empty($child_field['id'])) {
-					$child_field['id'] = is_string($child_key) ? $child_key : uniqid('field_', true);
-				}
-				$this->render_field($child_field, $options, $level + 1);
-			}
+		// Delegated to render service - kept for internal compatibility
+		if ($this->render_service) {
+			$this->render_service->render_field($field, $options, $level);
 		}
 	}
 
 	/**
 	 * Format tooltip text with safe lightweight HTML.
 	 *
-	 * Rules:
-	 * - If explicit HTML is provided, keep it (sanitized).
-	 * - If plain text is provided, auto-wrap into paragraphs.
-	 * - Label-like fragments (e.g. "Grid:") are bolded for readability.
+	 * @param string $raw Raw tooltip text.
+	 * @return string Formatted HTML content.
+	 * @deprecated Use render service instead.
 	 */
 	private function format_tooltip_content(string $raw): string
 	{
-		$allowed_html = [
-			'p' => [],
-			'br' => [],
-			'b' => [],
-			'strong' => [],
-			'em' => [],
-			'code' => [],
-			'ul' => [],
-			'ol' => [],
-			'li' => [],
-			'a' => [
-				'href' => true,
-				'target' => true,
-				'rel' => true,
-			],
-		];
-
-		$raw = trim($raw);
-		if ('' === $raw) {
-			return '';
+		// Delegated to render service - kept for internal compatibility
+		if ($this->render_service) {
+			return $this->render_service->format_tooltip_content($raw);
 		}
-
-		$sanitized = wp_kses($raw, $allowed_html);
-
-		// If the source is already intentionally structured, preserve it as-is.
-		if ((bool) preg_match('/<(p|ul|ol|li|br)\b/i', $sanitized)) {
-			return $sanitized;
-		}
-
-		// Normalize any lightweight HTML into plain text for global auto-formatting.
-		// This lets existing strings like "<strong>Grid:</strong> ..." become proper list rows.
-		$text_source = preg_replace('/<br\s*\/?>/i', "\n", $sanitized);
-		$text_source = wp_strip_all_tags((string) $text_source, true);
-
-		// Normalize plain text for formatter heuristics.
-		$normalized = preg_replace('/\r\n?|\n/', ' ', (string) $text_source);
-		$normalized = preg_replace('/\s+/', ' ', (string) $normalized);
-		$normalized = trim((string) $normalized);
-
-		if ('' === $normalized) {
-			return '';
-		}
-
-		$label_pattern = '/([A-Z][A-Za-z0-9\/\-\s]{1,40}):\s*/';
-		$label_matches = [];
-		preg_match_all($label_pattern, $normalized, $label_matches, PREG_OFFSET_CAPTURE);
-
-		$html_parts = [];
-
-		// If there are label segments, render intro + list structure.
-		if (!empty($label_matches[0]) && count($label_matches[0]) >= 1) {
-			$first_offset = (int) $label_matches[0][0][1];
-			$intro = trim(substr($normalized, 0, $first_offset));
-
-			if ('' !== $intro) {
-				$intro = rtrim($intro, '. ');
-				$html_parts[] = sprintf('<p>%s.</p>', esc_html($intro));
-			}
-
-			$list_items = [];
-			$total = count($label_matches[0]);
-			for ($index = 0; $index < $total; $index++) {
-				$full_match = $label_matches[0][$index][0];
-				$current_offset = (int) $label_matches[0][$index][1];
-				$next_offset = ($index + 1 < $total)
-					? (int) $label_matches[0][$index + 1][1]
-					: strlen($normalized);
-
-				$label = trim(rtrim($full_match, ':'));
-				$body_start = $current_offset + strlen($full_match);
-				$body = trim(substr($normalized, $body_start, $next_offset - $body_start));
-				$body = rtrim($body, '. ');
-
-				if ('' === $label && '' === $body) {
-					continue;
-				}
-
-				if ('' !== $body) {
-					$list_items[] = sprintf(
-						'<li><strong>%s:</strong> %s.</li>',
-						esc_html($label),
-						esc_html($body)
-					);
-				} else {
-					$list_items[] = sprintf('<li><strong>%s:</strong></li>', esc_html($label));
-				}
-			}
-
-			if (!empty($list_items)) {
-				$html_parts[] = '<ul>' . implode('', $list_items) . '</ul>';
-			}
-		} else {
-			$chunks = preg_split('/\s(?=[A-Z][A-Za-z0-9\/\-\s]{2,40}:\s)/', $normalized) ?: [$normalized];
-			foreach ($chunks as $chunk) {
-				$chunk = trim((string) $chunk);
-				if ('' === $chunk) {
-					continue;
-				}
-
-				if (preg_match('/^([A-Z][A-Za-z0-9\/\-\s]{2,40}:)\s*(.*)$/', $chunk, $matches)) {
-					$label = esc_html(trim($matches[1]));
-					$text = esc_html(trim($matches[2]));
-					$html_parts[] = sprintf('<p><strong>%s</strong> %s</p>', $label, $text);
-					continue;
-				}
-
-				$html_parts[] = sprintf('<p>%s</p>', esc_html($chunk));
-			}
-		}
-
-		if (empty($html_parts)) {
-			return wp_kses(sprintf('<p>%s</p>', esc_html($normalized)), $allowed_html);
-		}
-
-		return wp_kses(implode('', $html_parts), $allowed_html);
+		return $raw;
 	}
 
 	/**
@@ -2102,40 +1470,14 @@ final class RL_Options_Framework
 	 *
 	 * @param array       $field Field definition.
 	 * @param string|bool $value Current value.
+	 * @deprecated Use render service instead.
 	 */
 	private function render_field_control(array $field, $value): void
 	{
-		$field_id = $field['id'];
-		$field_name = $this->get_input_name($field_id);
-		$input_id = $this->get_input_id($field_id);
-		$field_type = (string) ($field['type'] ?? 'text');
-
-		if ($this->field_registry) {
-			$renderer = $this->field_registry->get($field_type);
-			if ($renderer) {
-				$renderer->render(
-					$field,
-					$value,
-					[
-						'input_id' => $input_id,
-						'field_name' => $field_name,
-						'text_domain' => (string) $this->config['text_domain'],
-						'options_state' => $this->get_options(),
-						'geo_options_callback' => function (array $geo_field, string $geo_type, array $state = []): array {
-							return $this->get_geo_field_options($geo_field, $geo_type, $state);
-						},
-					]
-				);
-				return;
-			}
+		// Delegated to render service - kept for internal compatibility
+		if ($this->render_service) {
+			$this->render_service->render_field_control($field, $value);
 		}
-
-		printf(
-			'<input type="text" id="%1$s" name="%2$s" value="%3$s" class="regular-text" />',
-			esc_attr($input_id),
-			esc_attr($field_name),
-			esc_attr((string) $value)
-		);
 	}
 
 	/**
@@ -2246,7 +1588,7 @@ final class RL_Options_Framework
 	 *
 	 * @return array
 	 */
-	private function get_tabs(): array
+	public function get_tabs(): array
 	{
 		$filter_name = $this->config['option_name'] . '_framework_tabs';
 		$tabs = apply_filters($filter_name, $this->tabs, $this);
@@ -2361,7 +1703,7 @@ final class RL_Options_Framework
 	 *
 	 * @return array<string,array>
 	 */
-	private function get_fields_index(): array
+	public function get_fields_index(): array
 	{
 		$fields = [];
 		$tabs = $this->get_tabs();
@@ -2429,7 +1771,7 @@ final class RL_Options_Framework
 		}
 	}
 
-	private function get_field_label(array $field): string
+	public function get_field_label(array $field): string
 	{
 		$label = $field['label'] ?? $field['title'] ?? $field['id'] ?? 'Field';
 		$label = wp_strip_all_tags((string) $label);
@@ -2437,7 +1779,7 @@ final class RL_Options_Framework
 		return trim($label) !== '' ? $label : ((string) ($field['id'] ?? 'Field'));
 	}
 
-	private function normalize_field_label(string $label): string
+	public function normalize_field_label(string $label): string
 	{
 		$normalized = preg_replace('/^\s*(?:[↳➜→\-–—]+\s*)+\s*/u', '', $label);
 		if (null === $normalized) {
@@ -2454,12 +1796,14 @@ final class RL_Options_Framework
 	 * @param mixed $value Raw value.
 	 * @return mixed
 	 */
-	private function sanitize_field_value(array $field, $value)
+	public function sanitize_field_value(array $field, $value)
 	{
+		// Allow custom sanitize callback to take precedence
 		if (isset($field['sanitize_callback']) && is_callable($field['sanitize_callback'])) {
 			return call_user_func($field['sanitize_callback'], $value, $field);
 		}
 
+		// Delegate to field type's processing interface if available
 		$field_type = (string) ($field['type'] ?? 'text');
 		$renderer = $this->field_registry ? $this->field_registry->get($field_type) : null;
 		if ($renderer instanceof RL_Field_Processing_Interface) {
@@ -2479,150 +1823,8 @@ final class RL_Options_Framework
 			);
 		}
 
-		switch ($field['type']) {
-			case 'toggle':
-			case 'checkbox':
-				return !empty($value);
-
-			case 'country':
-			case 'state':
-			case 'city':
-				$raw = sanitize_text_field((string) $value);
-				$allowed = array_keys($this->get_geo_field_options($field, (string) $field['type'], $this->validation_context));
-				return in_array($raw, $allowed, true) ? $raw : '';
-
-			case 'country_state_city':
-				$raw_group = is_array($value) ? $value : [];
-				$country = sanitize_text_field((string) ($raw_group['country'] ?? ''));
-				$state = sanitize_text_field((string) ($raw_group['state'] ?? ''));
-				$city = sanitize_text_field((string) ($raw_group['city'] ?? ''));
-
-				$allowed_countries = array_keys($this->get_geo_field_options($field, 'country', $this->validation_context));
-				if (!in_array($country, $allowed_countries, true)) {
-					$country = '';
-				}
-
-				$allowed_states = array_keys($this->get_geo_field_options(array_merge($field, ['country' => $country]), 'state', $this->validation_context));
-				if (!in_array($state, $allowed_states, true)) {
-					$state = '';
-				}
-
-				$allowed_cities = array_keys($this->get_geo_field_options(array_merge($field, ['country' => $country, 'subdivision' => $state]), 'city', $this->validation_context));
-				if (!in_array($city, $allowed_cities, true)) {
-					$city = '';
-				}
-
-				return [
-					'country' => $country,
-					'state' => $state,
-					'city' => $city,
-				];
-
-			case 'date':
-				if ($value === null || $value === '') {
-					return '';
-				}
-
-				$raw = trim(sanitize_text_field((string) $value));
-				if (preg_match('/^(\d{4})-(\d{2})-(\d{2})$/', $raw, $matches) && checkdate((int) $matches[2], (int) $matches[3], (int) $matches[1])) {
-					return sprintf('%04d-%02d-%02d', (int) $matches[1], (int) $matches[2], (int) $matches[3]);
-				}
-
-				$fallback = trim((string) ($field['default'] ?? ''));
-				if ($fallback !== '' && preg_match('/^(\d{4})-(\d{2})-(\d{2})$/', $fallback, $matches) && checkdate((int) $matches[2], (int) $matches[3], (int) $matches[1])) {
-					return sprintf('%04d-%02d-%02d', (int) $matches[1], (int) $matches[2], (int) $matches[3]);
-				}
-
-				return '';
-
-			case 'datetime':
-				if ($value === null || $value === '') {
-					return '';
-				}
-
-				$raw = trim(sanitize_text_field((string) $value));
-				if (preg_match('/^\d{4}-\d{2}-\d{2}\s\d{2}:\d{2}$/', $raw) && false !== strtotime($raw)) {
-					return date('Y-m-d H:i', strtotime($raw));
-				}
-
-				$fallback = trim((string) ($field['default'] ?? ''));
-				if ($fallback !== '' && preg_match('/^\d{4}-\d{2}-\d{2}\s\d{2}:\d{2}$/', $fallback) && false !== strtotime($fallback)) {
-					return date('Y-m-d H:i', strtotime($fallback));
-				}
-
-				return '';
-
-			case 'number':
-				if (isset($field['step']) && floatval($field['step']) !== intval($field['step'])) {
-					return isset($value) ? floatval($value) : null;
-				}
-				return isset($value) ? intval($value) : null;
-
-			case 'color':
-				// Allow empty values to pass through without forcing a default.
-				if ($value === '' || $value === null) {
-					return '';
-				}
-
-				$raw = trim((string) $value);
-
-				// Accept standard 3/6-digit hex via WP helper.
-				$standard_hex = sanitize_hex_color($raw);
-				if ($standard_hex) {
-					return $standard_hex;
-				}
-
-				// Accept 8-digit hex (with alpha) as-is if it matches the pattern.
-				if (preg_match('/^#([0-9a-fA-F]{8})$/', $raw)) {
-					return $raw;
-				}
-
-				// Accept rgba()/rgb() values when provided.
-				if (preg_match('/^rgba?\([^\)]+\)$/i', $raw)) {
-					return $raw;
-				}
-
-				return $field['default'] ?? '';
-
-			case 'textarea':
-				return isset($value) ? wp_kses_post($value) : '';
-
-			case 'select':
-			case 'radio':
-			case 'image_select':
-				$allowed = $this->get_allowed_option_keys($field, $this->validation_context);
-
-				// Convert allowed keys to strings to match form submission values
-				// Form values are always strings, but array_keys() may return integers
-				$allowed = array_map('strval', $allowed);
-
-				// Debug for specific fields
-				if (in_array($field['id'] ?? '', ['slider_position', 'gallery_type'], true)) {
-					error_log(sprintf(
-						'[RL Framework] Sanitize select - Field: %s, Value: "%s" (type: %s), Allowed: %s, Match: %s',
-						$field['id'],
-						$value,
-						gettype($value),
-						json_encode($allowed),
-						in_array($value, $allowed, true) ? 'YES' : 'NO'
-					));
-				}
-
-				return in_array((string) $value, $allowed, true) ? (string) $value : ($field['default'] ?? null);
-			case 'multiselect':
-				$allowed = $this->get_allowed_option_keys($field, $this->validation_context);
-				$values = is_array($value) ? array_values($value) : [];
-
-				return array_values(
-					array_intersect(
-						$allowed,
-						array_map('sanitize_text_field', $values)
-					)
-				);
-
-			default:
-				return isset($value) ? sanitize_text_field($value) : '';
-		}
+		// Fallback for fields without processing interface
+		return isset($value) ? sanitize_text_field($value) : '';
 	}
 
 	/**
@@ -2635,7 +1837,7 @@ final class RL_Options_Framework
 	 * @param mixed $value Raw submitted value.
 	 * @return mixed
 	 */
-	private function prepare_value_for_validation(array $field, $value)
+	public function prepare_value_for_validation(array $field, $value)
 	{
 		$field_type = $field['type'] ?? '';
 		$renderer = $this->field_registry ? $this->field_registry->get((string) $field_type) : null;
@@ -2701,11 +1903,11 @@ final class RL_Options_Framework
 	 * @param string &$error Error message (passed by reference).
 	 * @return bool True if valid, false otherwise.
 	 */
-	private function validate_field_value(array $field, $value, string &$error = ''): bool
+	public function validate_field_value(array $field, $value, string &$error = ''): bool
 	{
 		$field_label = $this->get_field_label($field);
 
-		// Custom validation callback
+		// Custom validation callback takes precedence
 		if (isset($field['validate_callback']) && is_callable($field['validate_callback'])) {
 			$result = call_user_func($field['validate_callback'], $value, $field);
 			if (is_wp_error($result)) {
@@ -2742,6 +1944,7 @@ final class RL_Options_Framework
 			return false;
 		}
 
+		// Delegate to field type's processing interface if available
 		$field_type = (string) ($field['type'] ?? 'text');
 		$renderer = $this->field_registry ? $this->field_registry->get($field_type) : null;
 		if ($renderer instanceof RL_Field_Processing_Interface) {
@@ -2764,244 +1967,7 @@ final class RL_Options_Framework
 			);
 		}
 
-		// Type-specific validation
-		switch ($field['type']) {
-			case 'country':
-			case 'state':
-			case 'city':
-				if ($value === '' || $value === null) {
-					break;
-				}
-				$allowed = array_keys($this->get_geo_field_options($field, (string) $field['type'], $this->validation_context));
-				if (!in_array((string) $value, $allowed, true)) {
-					$error = sprintf(
-						/* translators: %s: field title */
-						__('%s has an invalid geographic value.', $this->config['text_domain']),
-						$field_label
-					);
-					return false;
-				}
-				break;
-
-			case 'country_state_city':
-				$group = is_array($value) ? $value : [];
-				$country = sanitize_text_field((string) ($group['country'] ?? ''));
-				$state = sanitize_text_field((string) ($group['state'] ?? ''));
-				$city = sanitize_text_field((string) ($group['city'] ?? ''));
-				$required = !empty($field['required']);
-
-				if ($required && $country === '') {
-					$error = sprintf(
-						/* translators: %s: field title */
-						__('%s requires a country selection.', $this->config['text_domain']),
-						$field_label
-					);
-					return false;
-				}
-
-				if ($country !== '') {
-					$allowed_countries = array_keys($this->get_geo_field_options($field, 'country', $this->validation_context));
-					if (!in_array($country, $allowed_countries, true)) {
-						$error = sprintf(
-							/* translators: %s: field title */
-							__('%s has an invalid country.', $this->config['text_domain']),
-							$field_label
-						);
-						return false;
-					}
-				}
-
-				if ($state !== '') {
-					$allowed_states = array_keys($this->get_geo_field_options(array_merge($field, ['country' => $country]), 'state', $this->validation_context));
-					if (!in_array($state, $allowed_states, true)) {
-						$error = sprintf(
-							/* translators: %s: field title */
-							__('%s has an invalid state/district.', $this->config['text_domain']),
-							$field_label
-						);
-						return false;
-					}
-				}
-
-				if ($city !== '') {
-					$allowed_cities = array_keys($this->get_geo_field_options(array_merge($field, ['country' => $country, 'subdivision' => $state]), 'city', $this->validation_context));
-					if (!in_array($city, $allowed_cities, true)) {
-						$error = sprintf(
-							/* translators: %s: field title */
-							__('%s has an invalid city/municipality.', $this->config['text_domain']),
-							$field_label
-						);
-						return false;
-					}
-				}
-				break;
-
-			case 'number':
-				if (!is_numeric($value)) {
-					$error = sprintf(
-						/* translators: %s: field label */
-						__('%s must be a valid number.', $this->config['text_domain']),
-						$field_label
-					);
-					return false;
-				}
-
-				if (isset($field['min']) && $value < $field['min']) {
-					$error = sprintf(
-						/* translators: 1: field title, 2: minimum value */
-						__('%1$s must be at least %2$s.', $this->config['text_domain']),
-						$field_label,
-						$field['min']
-					);
-					return false;
-				}
-
-				if (isset($field['max']) && $value > $field['max']) {
-					$error = sprintf(
-						/* translators: 1: field title, 2: maximum value */
-						__('%1$s must be no more than %2$s.', $this->config['text_domain']),
-						$field_label,
-						$field['max']
-					);
-					return false;
-				}
-				break;
-
-			case 'date':
-				if ($value === '' || $value === null) {
-					break;
-				}
-
-				$raw = trim((string) $value);
-				if (!preg_match('/^(\d{4})-(\d{2})-(\d{2})$/', $raw, $matches) || !checkdate((int) $matches[2], (int) $matches[3], (int) $matches[1])) {
-					$error = sprintf(
-						/* translators: %s: field title */
-						__('%s must be a valid date (YYYY-MM-DD).', $this->config['text_domain']),
-						$field_label
-					);
-					return false;
-				}
-
-				if (isset($field['min']) && preg_match('/^(\d{4})-(\d{2})-(\d{2})$/', (string) $field['min'], $min_match) && checkdate((int) $min_match[2], (int) $min_match[3], (int) $min_match[1]) && strcmp($raw, (string) $field['min']) < 0) {
-					$error = sprintf(
-						/* translators: 1: field title, 2: minimum date */
-						__('%1$s must be on or after %2$s.', $this->config['text_domain']),
-						$field_label,
-						$field['min']
-					);
-					return false;
-				}
-
-				if (isset($field['max']) && preg_match('/^(\d{4})-(\d{2})-(\d{2})$/', (string) $field['max'], $max_match) && checkdate((int) $max_match[2], (int) $max_match[3], (int) $max_match[1]) && strcmp($raw, (string) $field['max']) > 0) {
-					$error = sprintf(
-						/* translators: 1: field title, 2: maximum date */
-						__('%1$s must be on or before %2$s.', $this->config['text_domain']),
-						$field_label,
-						$field['max']
-					);
-					return false;
-				}
-				break;
-
-			case 'datetime':
-				if ($value === '' || $value === null) {
-					break;
-				}
-
-				$raw = trim((string) $value);
-				if (!preg_match('/^\d{4}-\d{2}-\d{2}\s\d{2}:\d{2}$/', $raw) || false === strtotime($raw)) {
-					$error = sprintf(
-						/* translators: %s: field title */
-						__('%s must be a valid date and time.', $this->config['text_domain']),
-						$field_label
-					);
-					return false;
-				}
-				break;
-
-			case 'select':
-			case 'radio':
-			case 'image_select':
-				if ($value === '' || $value === null) {
-					break;
-				}
-
-				$allowed = $this->get_allowed_option_keys($field, $this->validation_context);
-				if (!in_array((string) $value, $allowed, true)) {
-					$error = sprintf(
-						/* translators: %s: field title */
-						__('%s has an invalid option selected.', $this->config['text_domain']),
-						$field_label
-					);
-					return false;
-				}
-				break;
-
-			case 'multiselect':
-				if ($value === '' || $value === null) {
-					break;
-				}
-
-				$allowed = $this->get_allowed_option_keys($field, $this->validation_context);
-				$values = is_array($value) ? $value : [$value];
-				foreach ($values as $item) {
-					if (!in_array((string) $item, $allowed, true)) {
-						$error = sprintf(
-							/* translators: %s: field title */
-							__('%s includes an invalid option.', $this->config['text_domain']),
-							$field_label
-						);
-						return false;
-					}
-				}
-				break;
-
-			case 'text':
-			case 'textarea':
-				if (isset($field['maxlength']) && mb_strlen($value) > $field['maxlength']) {
-					$error = sprintf(
-						/* translators: 1: field title, 2: maximum length */
-						__('%1$s must be no more than %2$s characters.', $this->config['text_domain']),
-						$field_label,
-						$field['maxlength']
-					);
-					return false;
-				}
-
-				if (isset($field['pattern']) && !preg_match($field['pattern'], $value)) {
-					$error = sprintf(
-						/* translators: %s: field title */
-						__('%s has an invalid format.', $this->config['text_domain']),
-						$field_label
-					);
-					return false;
-				}
-				break;
-
-			case 'color':
-				// Allow empty, 3/6/8-digit hex, and rgb/rgba values.
-				if ($value === '' || $value === null) {
-					break;
-				}
-
-				$raw = (string) $value;
-				if (preg_match('/^#([A-Fa-f0-9]{3}|[A-Fa-f0-9]{6}|[A-Fa-f0-9]{8})$/', $raw)) {
-					break;
-				}
-
-				if (preg_match('/^rgba?\([^\)]+\)$/i', $raw)) {
-					break;
-				}
-
-				$error = sprintf(
-					/* translators: %s: field title */
-					__('%s must be a valid hex color.', $this->config['text_domain']),
-					$field_label
-				);
-				return false;
-				break;
-		}
-
+		// Fallback validation for fields without processing interface
 		return true;
 	}
 
@@ -3118,7 +2084,7 @@ final class RL_Options_Framework
 	/**
 	 * Utility – produce field input name.
 	 */
-	private function get_input_name(string $field_id): string
+	public function get_input_name(string $field_id): string
 	{
 		return $this->config['form_field_prefix'] . '[' . $field_id . ']';
 	}
@@ -3126,7 +2092,7 @@ final class RL_Options_Framework
 	/**
 	 * Utility – produce field input ID.
 	 */
-	private function get_input_id(string $field_id): string
+	public function get_input_id(string $field_id): string
 	{
 		return $this->config['form_field_prefix'] . '_' . $field_id;
 	}
@@ -3137,7 +2103,7 @@ final class RL_Options_Framework
 	 * @param array $tabs Tabs list.
 	 * @return string Tab slug, or empty string if no tabs exist.
 	 */
-	private function get_current_tab_slug(array $tabs): string
+	public function get_current_tab_slug(array $tabs): string
 	{
 		// If no tabs, return empty string
 		if (empty($tabs)) {
@@ -3158,7 +2124,7 @@ final class RL_Options_Framework
 	/**
 	 * Build URL for tab navigation.
 	 */
-	private function get_tab_url(string $slug): string
+	public function get_tab_url(string $slug): string
 	{
 		return add_query_arg(
 			[
@@ -3357,7 +2323,7 @@ final class RL_Options_Framework
 	 * @param array $options Current options values.
 	 * @return array Tabs with visibility flags.
 	 */
-	private function filter_tabs_by_conditions(array $tabs, array $options): array
+	public function filter_tabs_by_conditions(array $tabs, array $options): array
 	{
 		foreach ($tabs as $slug => &$tab) {
 			// Check if tab has show_if condition

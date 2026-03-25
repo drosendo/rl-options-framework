@@ -4,7 +4,7 @@ if (!defined('ABSPATH')) {
 	return;
 }
 
-class RL_Field_Datetime implements RL_Field_Interface
+class RL_Field_Datetime implements RL_Field_Interface, RL_Field_Processing_Interface
 {
 	public function type(): string
 	{
@@ -38,5 +38,50 @@ class RL_Field_Datetime implements RL_Field_Interface
 			esc_attr($time_value),
 			$time_step
 		);
+	}
+
+	public function sanitize(array $field, $value, array $context = [])
+	{
+		if ($value === null || $value === '') {
+			return '';
+		}
+
+		$raw = trim(sanitize_text_field((string) $value));
+		if (preg_match('/^\d{4}-\d{2}-\d{2}\s\d{2}:\d{2}$/', $raw) && false !== strtotime($raw)) {
+			return date('Y-m-d H:i', strtotime($raw));
+		}
+
+		$fallback = trim((string) ($field['default'] ?? ''));
+		if ($fallback !== '' && preg_match('/^\d{4}-\d{2}-\d{2}\s\d{2}:\d{2}$/', $fallback) && false !== strtotime($fallback)) {
+			return date('Y-m-d H:i', strtotime($fallback));
+		}
+
+		return '';
+	}
+
+	public function validate(array $field, $value, string &$error, array $context = []): bool
+	{
+		$field_label = $context['field_label'] ?? 'Field';
+		$text_domain = $context['text_domain'] ?? 'default';
+
+		if ($value === '' || $value === null) {
+			return true;
+		}
+
+		$raw = trim((string) $value);
+		if (!preg_match('/^\d{4}-\d{2}-\d{2}\s\d{2}:\d{2}$/', $raw) || false === strtotime($raw)) {
+			$error = sprintf(
+				__('%s must be a valid date and time.', $text_domain),
+				$field_label
+			);
+			return false;
+		}
+
+		return true;
+	}
+
+	public function prepare_for_validation(array $field, $value, array $context = [])
+	{
+		return $value;
 	}
 }

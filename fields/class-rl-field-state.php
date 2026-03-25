@@ -4,7 +4,7 @@ if (!defined('ABSPATH')) {
 	return;
 }
 
-class RL_Field_State implements RL_Field_Interface
+class RL_Field_State implements RL_Field_Interface, RL_Field_Processing_Interface
 {
 	public function type(): string
 	{
@@ -38,5 +38,45 @@ class RL_Field_State implements RL_Field_Interface
 			printf('<option value="%1$s"%2$s>%3$s</option>', esc_attr((string) $option_value), selected($value, $option_value, false), esc_html((string) $option_label));
 		}
 		echo '</select>';
+	}
+
+	public function sanitize(array $field, $value, array $context = [])
+	{
+		$raw = sanitize_text_field((string) $value);
+		$geo_callback = $context['geo_options_callback'] ?? null;
+		if (!is_callable($geo_callback)) {
+			return '';
+		}
+		$allowed = array_keys(call_user_func($geo_callback, $field, 'state', $context['validation_context'] ?? []));
+		return in_array($raw, $allowed, true) ? $raw : '';
+	}
+
+	public function validate(array $field, $value, string &$error, array $context = []): bool
+	{
+		$field_label = $context['field_label'] ?? 'Field';
+		$text_domain = $context['text_domain'] ?? 'default';
+
+		if ($value === '' || $value === null) {
+			return true;
+		}
+
+		$geo_callback = $context['geo_options_callback'] ?? null;
+		if (!is_callable($geo_callback)) {
+			$error = sprintf(__('%s has an invalid geographic value.', $text_domain), $field_label);
+			return false;
+		}
+
+		$allowed = array_keys(call_user_func($geo_callback, $field, 'state', $context['validation_context'] ?? []));
+		if (!in_array((string) $value, $allowed, true)) {
+			$error = sprintf(__('%s has an invalid geographic value.', $text_domain), $field_label);
+			return false;
+		}
+
+		return true;
+	}
+
+	public function prepare_for_validation(array $field, $value, array $context = [])
+	{
+		return $value;
 	}
 }

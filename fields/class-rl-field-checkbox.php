@@ -4,7 +4,7 @@ if (!defined('ABSPATH')) {
 	return;
 }
 
-class RL_Field_Checkbox implements RL_Field_Interface
+class RL_Field_Checkbox implements RL_Field_Interface, RL_Field_Processing_Interface
 {
 	public function type(): string
 	{
@@ -22,5 +22,20 @@ class RL_Field_Checkbox implements RL_Field_Interface
 			checked(!empty($value), true, false),
 			esc_html((string) ($field['text'] ?? ''))
 		);
+	}
+
+	public function sanitize(array $field, $value, array $context = [])
+	{
+		return !empty($value);
+	}
+
+	public function validate(array $field, $value, string &$error, array $context = []): bool
+	{
+		return true;
+	}
+
+	public function prepare_for_validation(array $field, $value, array $context = [])
+	{
+		return $value;
 	}
 }

@@ -2130,11 +2130,6 @@ final class RL_Options_Framework
 			}
 		}
 
-		RL_Logger::warn('No field renderer registered for field type.', [
-			'field_type' => $field_type,
-			'field_id' => (string) $field_id,
-		]);
-
 		printf(
 			'<input type="text" id="%1$s" name="%2$s" value="%3$s" class="regular-text" />',
 			esc_attr($input_id),
@@ -2465,6 +2460,25 @@ final class RL_Options_Framework
 			return call_user_func($field['sanitize_callback'], $value, $field);
 		}
 
+		$field_type = (string) ($field['type'] ?? 'text');
+		$renderer = $this->field_registry ? $this->field_registry->get($field_type) : null;
+		if ($renderer instanceof RL_Field_Processing_Interface) {
+			return $renderer->sanitize(
+				$field,
+				$value,
+				[
+					'text_domain' => (string) $this->config['text_domain'],
+					'validation_context' => $this->validation_context,
+					'allowed_option_keys_callback' => function (array $f, array $state = []): array {
+						return $this->get_allowed_option_keys($f, $state);
+					},
+					'geo_options_callback' => function (array $f, string $type, array $state = []): array {
+						return $this->get_geo_field_options($f, $type, $state);
+					},
+				]
+			);
+		}
+
 		switch ($field['type']) {
 			case 'toggle':
 			case 'checkbox':
@@ -2624,6 +2638,17 @@ final class RL_Options_Framework
 	private function prepare_value_for_validation(array $field, $value)
 	{
 		$field_type = $field['type'] ?? '';
+		$renderer = $this->field_registry ? $this->field_registry->get((string) $field_type) : null;
+		if ($renderer instanceof RL_Field_Processing_Interface) {
+			return $renderer->prepare_for_validation(
+				$field,
+				$value,
+				[
+					'text_domain' => (string) $this->config['text_domain'],
+					'validation_context' => $this->validation_context,
+				]
+			);
+		}
 
 		if ('number' !== $field_type) {
 			return $value;
@@ -2715,6 +2740,28 @@ final class RL_Options_Framework
 				$field_label
 			);
 			return false;
+		}
+
+		$field_type = (string) ($field['type'] ?? 'text');
+		$renderer = $this->field_registry ? $this->field_registry->get($field_type) : null;
+		if ($renderer instanceof RL_Field_Processing_Interface) {
+			return $renderer->validate(
+				$field,
+				$value,
+				$error,
+				[
+					'text_domain' => (string) $this->config['text_domain'],
+					'field_label' => $field_label,
+					'validation_context' => $this->validation_context,
+					'required_checked' => true,
+					'allowed_option_keys_callback' => function (array $f, array $state = []): array {
+						return $this->get_allowed_option_keys($f, $state);
+					},
+					'geo_options_callback' => function (array $f, string $type, array $state = []): array {
+						return $this->get_geo_field_options($f, $type, $state);
+					},
+				]
+			);
 		}
 
 		// Type-specific validation

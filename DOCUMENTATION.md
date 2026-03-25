@@ -96,6 +96,44 @@ add_filter('my_project_options_framework_tabs', function(array $tabs) {
 
 ## 4. Field Types
 
+### Field Architecture (Best Practice)
+
+Framework fields now follow an ACF-style architecture:
+
+- Single responsibility: each field type has its own class file under [fields/class-rl-field-*.php](fields).
+- Registry/dispatcher: renderers are resolved through [fields/class-rl-field-registry.php](fields/class-rl-field-registry.php).
+- Bootstrap loader: built-in renderers are registered in [fields/class-rl-field-bootstrap.php](fields/class-rl-field-bootstrap.php).
+- Backward compatible: unknown types still fall back to legacy rendering path.
+
+This makes field maintenance and additions safer than editing a single large switch statement.
+
+### Register custom field renderer
+
+```php
+class My_Project_Field_Rating implements RL_Field_Interface {
+    public function type(): string {
+        return 'rating';
+    }
+
+    public function render(array $field, $value, array $context = []): void {
+        $input_id = (string) ($context['input_id'] ?? '');
+        $field_name = (string) ($context['field_name'] ?? '');
+        printf('<input type="number" min="1" max="5" id="%1$s" name="%2$s" value="%3$s" />', esc_attr($input_id), esc_attr($field_name), esc_attr((string) $value));
+    }
+}
+
+add_action('my_project_options_framework_boot', function(RL_Options_Framework $framework) {
+    $framework->register_field_renderer(new My_Project_Field_Rating());
+});
+```
+
+### Best-practice notes
+
+- Keep renderers output-only (no save logic inside renderer classes).
+- Keep sanitize/validate logic in framework validation pipeline.
+- Use preset/bundle registry for reusable field config, not renderer classes.
+- Add new field types by creating a new file in [fields](fields) and registering it.
+
 ### Type contract
 
 | Type | Saved Value | Notes |

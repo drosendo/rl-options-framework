@@ -176,6 +176,13 @@ final class RL_Options_Framework
 	private ?RL_Field_Presets $presets = null;
 
 	/**
+	 * Field renderer registry.
+	 *
+	 * @var RL_Field_Registry|null
+	 */
+	private ?RL_Field_Registry $field_registry = null;
+
+	/**
 	 * Constructor.
 	 *
 	 * @param array $config Framework configuration.
@@ -255,6 +262,11 @@ final class RL_Options_Framework
 		require_once __DIR__ . '/class-rl-field-presets.php';
 		require_once __DIR__ . '/class-rl-field-types.php';
 		$this->presets = new RL_Field_Presets();
+
+		// Initialize field renderer registry (ACF-style single class per field type).
+		require_once __DIR__ . '/fields/load.php';
+		$this->field_registry = new RL_Field_Registry();
+		RL_Field_Bootstrap::register_defaults($this->field_registry);
 
 		// Register admin menu unless host project opts to fully control menu wiring.
 		if (!empty($this->config['register_menu'])) {
@@ -352,6 +364,26 @@ final class RL_Options_Framework
 		if (!empty($fields)) {
 			$this->add_fields($tab_slug, $section_id, $fields);
 		}
+	}
+
+	/**
+	 * Access field registry.
+	 */
+	public function field_registry(): ?RL_Field_Registry
+	{
+		return $this->field_registry;
+	}
+
+	/**
+	 * Register a custom field renderer.
+	 */
+	public function register_field_renderer(RL_Field_Interface $renderer): void
+	{
+		if (!$this->field_registry) {
+			return;
+		}
+
+		$this->field_registry->register($renderer);
 	}
 
 	/**
@@ -2076,8 +2108,29 @@ final class RL_Options_Framework
 		$field_id = $field['id'];
 		$field_name = $this->get_input_name($field_id);
 		$input_id = $this->get_input_id($field_id);
+		$field_type = (string) ($field['type'] ?? 'text');
 
-		switch ($field['type']) {
+		if ($this->field_registry) {
+			$renderer = $this->field_registry->get($field_type);
+			if ($renderer) {
+				$renderer->render(
+					$field,
+					$value,
+					[
+						'input_id' => $input_id,
+						'field_name' => $field_name,
+						'text_domain' => (string) $this->config['text_domain'],
+						'options_state' => $this->get_options(),
+						'geo_options_callback' => function (array $geo_field, string $geo_type, array $state = []): array {
+							return $this->get_geo_field_options($geo_field, $geo_type, $state);
+						},
+					]
+				);
+				return;
+			}
+		}
+
+		switch ($field_type) {
 			case 'html':
 				echo $field['html'] ?? '';
 				break;

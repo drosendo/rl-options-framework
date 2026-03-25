@@ -169,6 +169,13 @@ final class RL_Options_Framework
 	private bool $initialized = false;
 
 	/**
+	 * Presets manager instance for developer-registered presets and bundles.
+	 *
+	 * @var RL_Field_Presets|null
+	 */
+	private ?RL_Field_Presets $presets = null;
+
+	/**
 	 * Constructor.
 	 *
 	 * @param array $config Framework configuration.
@@ -244,6 +251,11 @@ final class RL_Options_Framework
 
 		$this->tabs = $this->get_default_tabs();
 
+		// Initialize presets manager
+		require_once __DIR__ . '/class-rl-field-presets.php';
+		require_once __DIR__ . '/class-rl-field-types.php';
+		$this->presets = new RL_Field_Presets();
+
 		// Register admin menu unless host project opts to fully control menu wiring.
 		if (!empty($this->config['register_menu'])) {
 			add_action('admin_menu', [$this, 'register_menu'], 60);
@@ -257,6 +269,9 @@ final class RL_Options_Framework
 		add_action('rest_api_init', [$this, 'register_rest_routes']);
 		add_action('admin_notices', [$this, 'render_notices']);
 
+		// Auto-register REST routes on early init for theme/plugin contexts that call init before rest_api_init
+		$this->maybe_auto_register_rest_routes();
+
 		$this->initialized = true;
 
 		/**
@@ -265,6 +280,78 @@ final class RL_Options_Framework
 		 * Hook name format: {option_name}_framework_boot
 		 */
 		do_action($this->config['option_name'] . '_framework_boot', $this);
+	}
+
+	/**
+	 * Ensure routes are available if framework boots after rest_api_init already fired.
+	 */
+	private function maybe_auto_register_rest_routes(): void
+	{
+		if (did_action('rest_api_init') > 0) {
+			$this->register_rest_routes();
+		}
+	}
+
+	/**
+	 * Access preset/bundle registry.
+	 */
+	public function presets(): ?RL_Field_Presets
+	{
+		return $this->presets;
+	}
+
+	/**
+	 * Register a reusable field preset.
+	 */
+	public function register_field_preset(string $preset_id, array $definition): void
+	{
+		if (!$this->presets) {
+			return;
+		}
+
+		$this->presets->register_preset($preset_id, $definition);
+	}
+
+	/**
+	 * Register a reusable field bundle resolver.
+	 */
+	public function register_field_bundle(string $bundle_id, callable $resolver): void
+	{
+		if (!$this->presets) {
+			return;
+		}
+
+		$this->presets->register_bundle($bundle_id, $resolver);
+	}
+
+	/**
+	 * Add one preset field into target section.
+	 */
+	public function add_preset_field(string $tab_slug, string $section_id, string $preset_id, array $overrides = []): void
+	{
+		if (!$this->presets) {
+			return;
+		}
+
+		$field = $this->presets->get_preset($preset_id, $overrides);
+		if (!empty($field)) {
+			$this->add_field($tab_slug, $section_id, $field);
+		}
+	}
+
+	/**
+	 * Expand and add a bundle into target section.
+	 */
+	public function add_bundle_fields(string $tab_slug, string $section_id, string $bundle_id, array $config = []): void
+	{
+		if (!$this->presets) {
+			return;
+		}
+
+		$fields = $this->presets->expand_bundle($bundle_id, $config);
+		if (!empty($fields)) {
+			$this->add_fields($tab_slug, $section_id, $fields);
+		}
 	}
 
 	/**
@@ -3423,6 +3510,47 @@ final class RL_Options_Framework
 	 */
 	private function normalize_field(array $field): array
 	{
+		if (!class_exists('RL_Field_Types')) {
+			require_once __DIR__ . '/class-rl-field-types.php';
+		}
+
+		// Expand typed aliases (email, phone, postal_code, url, nif) into framework-native field definitions.
+		if (class_exists('RL_Field_Types')) {
+			$field = RL_Field_Types::expand_typed_field($field);
+		}
+
+		// Provider shorthand: provider => 'countries' (or array) maps to options_provider.
+		if (!isset($field['options_provider']) && isset($field['provider'])) {
+			if (is_string($field['provider'])) {
+				$field['options_provider'] = [
+					'endpoint' => sanitize_key($field['provider']),
+				];
+			} elseif (is_array($field['provider'])) {
+				$field['options_provider'] = $field['provider'];
+			}
+		}
+
+		// Support sanitize/validate aliases for developer ergonomics.
+		if (!isset($field['sanitize_callback']) && isset($field['sanitize']) && is_callable($field['sanitize'])) {
+			$field['sanitize_callback'] = $field['sanitize'];
+		}
+		if (!isset($field['validate_callback']) && isset($field['validate']) && is_callable($field['validate'])) {
+			$field['validate_callback'] = $field['validate'];
+		}
+
+		// If a text-like field uses non-delimited pattern syntax, normalize to a full anchored regex.
+		if (!empty($field['pattern']) && is_string($field['pattern'])) {
+			$pattern = trim($field['pattern']);
+			if ($pattern !== '') {
+				$first = substr($pattern, 0, 1);
+				$last = substr($pattern, -1);
+				$is_delimited = in_array($first, ['/', '#', '~'], true) && $last === $first;
+				if (!$is_delimited) {
+					$field['pattern'] = '/^' . str_replace('/', '\\/', $pattern) . '$/';
+				}
+			}
+		}
+
 		$field = wp_parse_args(
 			$field,
 			[

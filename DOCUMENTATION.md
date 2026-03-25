@@ -334,6 +334,105 @@ Opt-in dependency engine for reactive field visibility/options/validation withou
 
 ---
 
+## 6. Framework Preset and Bundle Tools
+
+### What it is
+
+The framework provides a neutral preset/bundle registry. It does not ship business presets.
+Theme/plugin developers register their own reusable field definitions and bundle resolvers.
+
+### Registry API
+
+```php
+$framework->register_field_preset('my_email', [
+    'id' => 'contact_email',
+    'type' => 'email',
+    'label' => __('Email', 'my-plugin'),
+]);
+
+$framework->register_field_bundle('contact_bundle', function(array $config, $registry): array {
+    return [
+        $registry->get_preset('my_email'),
+    ];
+});
+
+$framework->add_preset_field('general', 'main', 'my_email');
+$framework->add_bundle_fields('general', 'main', 'contact_bundle');
+```
+
+### Preset registry access
+
+```php
+$registry = $framework->presets();
+$field = $registry ? $registry->get_preset('my_email', ['id' => 'support_email']) : [];
+```
+
+---
+
+## 7. Typed Field Aliases
+
+### What it is
+
+Aliases map semantic field types to a base field with built-in sanitize and validate behavior.
+
+### Supported aliases
+
+| Alias | Base Type | Built-in behavior |
+|------|-----------|-------------------|
+| `email` | `text` | `sanitize_email` + `is_email` |
+| `phone` | `text` | phone regex validate + tel attributes |
+| `postal_code` | `text` | postal format regex validate |
+| `url` | `text` | `esc_url_raw` + `wp_http_validate_url` |
+| `nif` | `text` | PT NIF sanitize + checksum validate |
+
+### Example
+
+```php
+'club_email' => [
+    'id' => 'club_email',
+    'type' => 'email',
+],
+'club_phone' => [
+    'id' => 'club_phone',
+    'type' => 'phone',
+],
+```
+
+---
+
+## 8. Provider Shortcut and Schema Defaults
+
+### Provider shortcut
+
+You can use shorthand syntax:
+
+```php
+'district' => [
+    'id' => 'district',
+    'type' => 'select',
+    'provider' => 'subdivisions',
+],
+```
+
+Framework normalizes to:
+
+```php
+'options_provider' => [
+    'endpoint' => 'subdivisions',
+]
+```
+
+### Callback aliases
+
+- `sanitize` is normalized to `sanitize_callback` when callable.
+- `validate` is normalized to `validate_callback` when callable.
+
+### Pattern normalization
+
+If `pattern` is provided without regex delimiters, framework wraps it as anchored regex automatically.
+
+---
+
 ## 6. Country Reference Service and API Layer
 
 ### What it is
@@ -386,7 +485,7 @@ rl_options_framework_get_country_municipalities('PT', 'lisboa');
 
 ---
 
-## 7. Validation and Save UX
+## 9. Validation and Save UX
 
 ### Validation behavior
 
@@ -403,7 +502,7 @@ rl_options_framework_get_country_municipalities('PT', 'lisboa');
 
 ---
 
-## 8. Security and Performance Notes
+## 10. Security and Performance Notes
 
 ### Security
 
@@ -418,7 +517,7 @@ rl_options_framework_get_country_municipalities('PT', 'lisboa');
 
 ---
 
-## 9. Migration Notes
+## 11. Migration Notes
 
 ### Hook naming
 

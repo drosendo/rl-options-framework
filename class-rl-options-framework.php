@@ -225,6 +225,13 @@ final class RL_Options_Framework
 	private ?RL_Options_Field_Processor $field_processor = null;
 
 	/**
+	 * Assets service instance for asset enqueueing and CDN/local asset management.
+	 *
+	 * @var RL_Options_Assets_Service|null
+	 */
+	private ?RL_Options_Assets_Service $assets_service = null;
+
+	/**
 	 * Constructor.
 	 *
 	 * @param array $config Framework configuration.
@@ -327,6 +334,9 @@ final class RL_Options_Framework
 
 		// Initialize field processor service for validation/sanitization logic.
 		$this->field_processor = new RL_Options_Field_Processor($this);
+
+		// Initialize assets service for admin asset enqueueing.
+		$this->assets_service = new RL_Options_Assets_Service($this);
 
 		// Register admin menu unless host project opts to fully control menu wiring.
 		if (!empty($this->config['register_menu'])) {
@@ -491,41 +501,14 @@ final class RL_Options_Framework
 	}
 
 	/**
-	 * Resolve framework assets URL for plugin or theme integrations.
+	 * Resolve framework assets URL (delegated to assets service).
+	 *
+	 * @param mixed $plugin Legacy parameter (ignored).
+	 * @return string Trailing-slash-terminated assets URL.
 	 */
 	private function resolve_assets_url($plugin = null): string
 	{
-		if (!empty($this->config['assets_url'])) {
-			return trailingslashit((string) $this->config['assets_url']);
-		}
-
-		$context = strtolower((string) ($this->config['context'] ?? 'auto'));
-		if (!in_array($context, ['auto', 'plugin', 'theme'], true)) {
-			$context = 'auto';
-		}
-
-		if (('auto' === $context || 'plugin' === $context) && $plugin && method_exists($plugin, 'get_plugin_url')) {
-			return trailingslashit($plugin->get_plugin_url() . 'includes/library/rloptionsFramework/assets');
-		}
-
-		$relative = 'includes/library/rloptionsFramework/assets/';
-		if ('theme' === $context || 'auto' === $context) {
-			$theme_dir = trailingslashit(get_template_directory());
-			$theme_uri = trailingslashit(get_template_directory_uri());
-			if (file_exists($theme_dir . $relative)) {
-				return $theme_uri . $relative;
-			}
-
-			if (is_child_theme()) {
-				$child_dir = trailingslashit(get_stylesheet_directory());
-				$child_uri = trailingslashit(get_stylesheet_directory_uri());
-				if (file_exists($child_dir . $relative)) {
-					return $child_uri . $relative;
-				}
-			}
-		}
-
-		return trailingslashit(plugin_dir_url(__FILE__) . 'assets');
+		return $this->assets_service ? $this->assets_service->resolve_assets_url() : '';
 	}
 
 	/**
@@ -562,203 +545,33 @@ final class RL_Options_Framework
 	}
 
 	/**
-	 * Enqueue admin assets.
+	 * Enqueue admin assets (delegated to assets service).
 	 */
 	public function enqueue_assets(string $hook): void
 	{
-		if (!$this->is_options_page()) {
-			return;
+		if ($this->assets_service) {
+			$this->assets_service->enqueue_assets($hook);
 		}
-
-		$use_local_assets = $this->should_use_local_assets();
-
-		wp_enqueue_style('dashicons');
-
-		// CSS for image_select field type
-		$custom_css = "
-			.rl-image-select-options {
-				display: flex;
-				flex-wrap: wrap;
-				gap: 15px;
-			}
-			.rl-image-select-option {
-				cursor: pointer;
-				position: relative;
-				display: inline-block;
-			}
-			.rl-image-select-option input[type='radio'] {
-				position: absolute;
-				opacity: 0;
-				width: 0;
-				height: 0;
-			}
-			.rl-image-select-option img {
-				display: block;
-				border: 2px solid #ddd;
-				border-radius: 4px;
-				transition: all 0.2s ease;
-				padding: 2px;
-				background: #fff;
-			}
-			.rl-image-select-option:hover img {
-				border-color: #999;
-			}
-			.rl-image-select-option input[type='radio']:checked + img {
-				border-color: #2271b1;
-				box-shadow: 0 0 0 1px #2271b1;
-			}
-			.rl-image-select-label {
-				display: block;
-				text-align: center;
-				margin-top: 5px;
-				font-size: 12px;
-				font-weight: 500;
-				color: #646970;
-			}
-			.rl-image-select-option input[type='radio']:checked ~ .rl-image-select-label {
-				color: #135e96;
-				font-weight: 600;
-			}
-		";
-		wp_register_style('rl-framework-custom-css', false);
-		wp_enqueue_style('rl-framework-custom-css');
-		wp_add_inline_style('rl-framework-custom-css', $custom_css);
-
-		wp_enqueue_style('wp-color-picker');
-		wp_enqueue_style(
-			$this->config['page_slug'] . '-framework',
-			$this->assets_url . 'css/options-framework.css',
-			['dashicons'],
-			$this->config['version']
-		);
-
-		$sweetalert_css_url = $use_local_assets
-			? $this->assets_url . 'vendor/sweetalert2/sweetalert2.min.css'
-			: 'https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css';
-		$tippy_css_url = $use_local_assets
-			? $this->assets_url . 'vendor/tippy/tippy.css'
-			: 'https://unpkg.com/tippy.js@6/dist/tippy.css';
-
-		// SweetAlert2 for better notifications
-		wp_enqueue_style(
-			'sweetalert2',
-			$sweetalert_css_url,
-			[],
-			'11.0.0'
-		);
-		// Tippy.js CSS for tooltips
-		wp_enqueue_style(
-			'tippy-js',
-			$tippy_css_url,
-			[],
-			'6.3.7'
-		);
-
-		$sweetalert_js_url = $use_local_assets
-			? $this->assets_url . 'vendor/sweetalert2/sweetalert2.all.min.js'
-			: 'https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.all.min.js';
-		$popper_js_url = $use_local_assets
-			? $this->assets_url . 'vendor/popper/popper.min.js'
-			: 'https://unpkg.com/@popperjs/core@2/dist/umd/popper.min.js';
-		$tippy_js_url = $use_local_assets
-			? $this->assets_url . 'vendor/tippy/tippy.umd.min.js'
-			: 'https://unpkg.com/tippy.js@6/dist/tippy.umd.min.js';
-
-
-		wp_enqueue_script('wp-color-picker');
-		wp_enqueue_script('jquery-ui-datepicker');
-		wp_localize_jquery_ui_datepicker(); // i18n: locale-aware month/day names
-		wp_enqueue_script(
-			'sweetalert2',
-			$sweetalert_js_url,
-			[],
-			'11.0.0',
-			true
-		);
-
-		// Popper.js (required for Tippy.js)
-		wp_enqueue_script(
-			'popper-js',
-			$popper_js_url,
-			[],
-			'2.11.8',
-			true
-		);
-
-		// Tippy.js for tooltips
-		wp_enqueue_script(
-			'tippy-js',
-			$tippy_js_url,
-			['popper-js'],
-			'6.3.7',
-			true
-		);
-
-		// Enqueue WordPress media uploader
-		wp_enqueue_media();
-
-		wp_enqueue_script(
-			$this->config['page_slug'] . '-framework',
-			$this->assets_url . 'js/options-framework.js',
-			['jquery', 'wp-color-picker', 'jquery-ui-datepicker', 'sweetalert2', 'tippy-js'],
-			$this->config['version'],
-			true
-		);
-
-		wp_localize_script(
-			$this->config['page_slug'] . '-framework',
-			'rlFramework',
-			[
-				'page' => $this->config['page_slug'],
-				'optionField' => $this->config['form_field_prefix'],
-				'ajax_url' => admin_url('admin-ajax.php'),
-				'ajax_action' => $this->config['ajax_action'],
-				'provider_action' => 'rl_options_framework_field_options',
-				'validate_action' => 'rl_options_framework_field_validate',
-				'nonce' => wp_create_nonce($this->config['ajax_action'] . '_nonce'),
-				'sync_history' => !empty($this->config['sync_history']),
-				'swal_fallback' => !empty($this->config['swal_fallback']),
-				'debug_level' => $this->resolve_debug_level(),
-				'rest_base' => esc_url_raw(rest_url('rl-options/v1/')),
-			]
-		);
 	}
 
 	/**
-	 * Resolve the effective JS debug level.
-	 * If the saved options contain a truthy debug toggle, returns 'debug'.
-	 * Otherwise falls back to config['debug_level'] (default 'error').
+	 * Resolve the effective JS debug level (delegated to assets service).
+	 *
+	 * @return string Debug level: 'error', 'warn', 'info', or 'debug'.
 	 */
 	private function resolve_debug_level(): string
 	{
-		$options = get_option($this->config['option_name'], []);
-		if (is_array($options) && !empty($options[$this->config['debug_field_id']])) {
-			return 'debug';
-		}
-		return (string) ($this->config['debug_level'] ?? 'error');
+		return $this->assets_service ? $this->assets_service->resolve_debug_level() : 'error';
 	}
 
 	/**
-	 * Check whether vendor assets should be served locally.
+	 * Check whether vendor assets should be served locally (delegated to assets service).
+	 *
+	 * @return bool True to use local assets; false to use CDN.
 	 */
 	private function should_use_local_assets(): bool
 	{
-		if (empty($this->config['use_local_assets_toggle'])) {
-			return false;
-		}
-
-		$field_id = $this->config['local_assets_field_id'] ?? 'rloptions_local_assets';
-		$options = get_option($this->config['option_name'], []);
-
-		if (!is_array($options)) {
-			return true;
-		}
-
-		if (!array_key_exists($field_id, $options)) {
-			return true;
-		}
-
-		return (bool) $options[$field_id];
+		return $this->assets_service ? $this->assets_service->should_use_local_assets() : false;
 	}
 
 	/**

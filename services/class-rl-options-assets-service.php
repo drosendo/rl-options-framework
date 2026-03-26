@@ -36,7 +36,7 @@ class RL_Options_Assets_Service {
 	 */
 	public function enqueue_assets(string $hook): void
 	{
-		if (!$this->framework->is_options_page()) {
+		if (!$this->is_target_admin_page($hook)) {
 			return;
 		}
 
@@ -195,6 +195,29 @@ class RL_Options_Assets_Service {
 				'rest_base' => esc_url_raw(rest_url('rl-options/v1/')),
 			]
 		);
+	}
+
+	/**
+	 * Check whether current admin hook/page matches framework options page.
+	 *
+	 * @param string $hook Current admin hook suffix.
+	 * @return bool
+	 */
+	private function is_target_admin_page(string $hook): bool
+	{
+		$config = $this->framework->get_config();
+		$page_slug = (string) ($config['page_slug'] ?? '');
+
+		if ('' === $page_slug) {
+			return false;
+		}
+
+		if ($hook === 'toplevel_page_' . $page_slug || str_ends_with($hook, '_page_' . $page_slug)) {
+			return true;
+		}
+
+		$page = isset($_GET['page']) ? sanitize_text_field(wp_unslash((string) $_GET['page'])) : '';
+		return $page === $page_slug;
 	}
 
 	/**

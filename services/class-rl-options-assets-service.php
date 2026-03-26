@@ -262,8 +262,8 @@ class RL_Options_Assets_Service {
 			}
 		}
 
-		// Fallback to plugin directory
-		return trailingslashit(plugin_dir_url(__FILE__) . '../../assets');
+		// Fallback: __FILE__ is in services/, so one level up reaches rloptionsFramework/assets/
+		return trailingslashit(plugin_dir_url(__FILE__) . '../assets');
 	}
 
 	/**

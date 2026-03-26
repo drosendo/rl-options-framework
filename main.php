@@ -19,3 +19,5 @@ require_once __DIR__ . '/services/class-rl-options-render-service.php';
 require_once __DIR__ . '/services/class-rl-options-admin-handler.php';
 require_once __DIR__ . '/services/class-rl-options-schema-manager.php';
 require_once __DIR__ . '/services/class-rl-options-rest-api.php';
+require_once __DIR__ . '/services/class-rl-options-storage-service.php';
+require_once __DIR__ . '/services/class-rl-options-field-processor.php';

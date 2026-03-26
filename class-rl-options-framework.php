@@ -211,6 +211,20 @@ final class RL_Options_Framework
 	private ?RL_Options_Rest_Api $rest_api = null;
 
 	/**
+	 * Storage service instance for backup/import/export/reset logic.
+	 *
+	 * @var RL_Options_Storage_Service|null
+	 */
+	private ?RL_Options_Storage_Service $storage_service = null;
+
+	/**
+	 * Field processor service instance for validation/sanitization/processing logic.
+	 *
+	 * @var RL_Options_Field_Processor|null
+	 */
+	private ?RL_Options_Field_Processor $field_processor = null;
+
+	/**
 	 * Constructor.
 	 *
 	 * @param array $config Framework configuration.
@@ -308,6 +322,12 @@ final class RL_Options_Framework
 		// Initialize REST API service for geo data and REST route registration.
 		$this->rest_api = new RL_Options_Rest_Api($this);
 
+		// Initialize storage service for backup/import/export/reset operations.
+		$this->storage_service = new RL_Options_Storage_Service($this);
+
+		// Initialize field processor service for validation/sanitization logic.
+		$this->field_processor = new RL_Options_Field_Processor($this);
+
 		// Register admin menu unless host project opts to fully control menu wiring.
 		if (!empty($this->config['register_menu'])) {
 			add_action('admin_menu', [$this, 'register_menu'], 60);
@@ -339,6 +359,14 @@ final class RL_Options_Framework
 	public function rest_api(): ?RL_Options_Rest_Api
 	{
 		return $this->rest_api;
+	}
+
+	/**
+	 * Get validation context for field processing.
+	 */
+	public function get_validation_context(): array
+	{
+		return $this->validation_context;
 	}
 
 	/**
@@ -801,271 +829,69 @@ final class RL_Options_Framework
 	}
 
 	/**
-	 * Resolve allowed option keys for static and provider-backed fields.
+	 * Resolve allowed option keys (delegated to field processor).
 	 *
 	 * @return string[]
 	 */
 	private function get_allowed_option_keys(array $field, array $state = []): array
 	{
-		$allowed = array_map('strval', array_keys($field['options'] ?? []));
-		$provider_options = $this->resolve_field_provider_options($field, $state, false);
-
-		foreach ($provider_options as $item) {
-			if (is_array($item) && isset($item['value'])) {
-				$allowed[] = (string) $item['value'];
-			}
-		}
-
-		$allowed = array_values(array_unique(array_filter($allowed, static function ($v) {
-			return $v !== '';
-		})));
-
-		return $allowed;
+		return $this->field_processor->get_allowed_option_keys($field, $state);
 	}
 
 	/**
-	 * Evaluate required_if rule set.
+	 * Evaluate required_if rule set (delegated to field processor).
 	 */
 	private function is_required_by_rules(array $rules, array $state): bool
 	{
-		if (isset($rules['field'])) {
-			$rules = [$rules];
-		}
-
-		if (empty($rules)) {
-			return false;
-		}
-
-		foreach ($rules as $rule) {
-			if (!is_array($rule)) {
-				continue;
-			}
-
-			$field = isset($rule['field']) ? (string) $rule['field'] : '';
-			if ($field === '') {
-				continue;
-			}
-
-			$current = $state[$field] ?? null;
-			$operator = strtolower((string) ($rule['operator'] ?? 'truthy'));
-			$expected = $rule['value'] ?? null;
-
-			if (!$this->match_dependency_rule($current, $operator, $expected)) {
-				return false;
-			}
-		}
-
-		return true;
+		return $this->field_processor->is_required_by_rules($rules, $state);
 	}
 
 	/**
-	 * Compare one dependency condition.
+	 * Compare one dependency condition (delegated to field processor).
 	 */
 	private function match_dependency_rule($current, string $operator, $expected): bool
 	{
-		switch ($operator) {
-			case 'equals':
-			case '==':
-				return $current == $expected;
-			case 'not_equals':
-			case '!=':
-				return $current != $expected;
-			case 'in':
-				return is_array($expected) ? in_array($current, $expected, true) : $current == $expected;
-			case 'not_in':
-				return is_array($expected) ? !in_array($current, $expected, true) : $current != $expected;
-			case 'empty':
-				return $current === null || $current === '' || $current === [];
-			case 'not_empty':
-				return !($current === null || $current === '' || $current === []);
-			case 'falsy':
-				return !$current;
-			case 'truthy':
-			default:
-				return (bool) $current;
-		}
+		return $this->field_processor->match_dependency_rule($current, $operator, $expected);
 	}
 
 	/**
-	 * Resolve async provider options for a field.
+	 * Resolve async provider options (delegated to field processor).
 	 *
 	 * @return array<int,array{value:string,label:string}>
 	 */
 	public function resolve_field_provider_options(array $field, array $state = [], bool $fallback_static = true): array
 	{
-		$provider = $field['options_provider'] ?? null;
-		if (!is_array($provider)) {
-			return $fallback_static ? $this->normalize_options_for_transport($field['options'] ?? []) : [];
-		}
-
-		$endpoint = strtolower((string) ($provider['endpoint'] ?? ''));
-		if ($endpoint === '') {
-			$endpoint = strtolower((string) ($provider['action'] ?? ''));
-		}
-
-		$options = [];
-		$country = strtoupper((string) $this->resolve_provider_param('country', $provider, $state));
-		$subdivision = (string) $this->resolve_provider_param('subdivision', $provider, $state);
-
-		switch ($endpoint) {
-			case 'countries':
-				$countries = $this->rest_api->get_country_reference_data();
-				foreach ($countries as $code => $item) {
-					$options[] = ['value' => (string) $code, 'label' => (string) ($item['name'] ?? $code)];
-				}
-				break;
-
-			case 'subdivisions':
-			case 'country_subdivisions':
-				$options = $this->rest_api->get_country_subdivisions_data($country);
-				break;
-
-			case 'municipalities':
-			case 'country_municipalities':
-				$options = $this->rest_api->get_country_municipalities_data($country, $subdivision);
-				break;
-		}
-
-		$options = apply_filters('rl_options_framework_resolved_provider_options', $options, $provider, $field, $state, $this);
-		if (!is_array($options) || empty($options)) {
-			$options = $fallback_static ? $this->normalize_options_for_transport($field['options'] ?? []) : [];
-		}
-
-		do_action('rl_options_framework_field_dependency_resolved', (string) ($field['id'] ?? ''), $provider, $state, $options, $this);
-
-		return $this->normalize_options_for_transport($options, $provider['mapping'] ?? []);
+		return $this->field_processor->resolve_field_provider_options($field, $state, $fallback_static);
 	}
 
 	/**
-	 * Resolve provider parameter from explicit param mapping or state.
+	 * Resolve provider parameter (delegated to field processor).
 	 */
 	private function resolve_provider_param(string $param, array $provider, array $state): string
 	{
-		$field_ref = $provider['params'][$param] ?? $provider[$param] ?? $param;
-		if (!is_string($field_ref) || $field_ref === '') {
-			return '';
-		}
-
-		$value = $state[$field_ref] ?? ($state[$param] ?? '');
-		if (is_array($value)) {
-			$value = reset($value);
-		}
-
-		return sanitize_text_field((string) $value);
+		return $this->field_processor->resolve_provider_param($param, $provider, $state);
 	}
 
 	/**
-	 * Build options map for geo field types.
+	 * Build options map for geo field types (delegated to field processor).
 	 *
 	 * @return array<string,string>
 	 */
 	public function get_geo_field_options(array $field, string $type, array $state = []): array
 	{
-		$out = [];
-		$type = strtolower($type);
-
-		if ($type === 'country') {
-			foreach ($this->rest_api->get_country_reference_data() as $code => $item) {
-				$out[(string) $code] = (string) ($item['name'] ?? $code);
-			}
-			return $out;
-		}
-
-		$country = $this->resolve_geo_country_code($field, $state);
-		if ($country === '') {
-			return $out;
-		}
-
-		if ($type === 'state') {
-			foreach ($this->rest_api->get_country_subdivisions_data($country) as $item) {
-				if (is_array($item) && isset($item['value'])) {
-					$out[(string) $item['value']] = (string) ($item['label'] ?? $item['value']);
-				}
-			}
-			return $out;
-		}
-
-		if ($type === 'city') {
-			$subdivision = '';
-			if (!empty($field['subdivision'])) {
-				$subdivision = sanitize_key((string) $field['subdivision']);
-			} elseif (!empty($field['subdivision_field']) && isset($state[(string) $field['subdivision_field']])) {
-				$subdivision = sanitize_key((string) $state[(string) $field['subdivision_field']]);
-			}
-
-			foreach ($this->rest_api->get_country_municipalities_data($country, $subdivision) as $item) {
-				if (is_array($item) && isset($item['value'])) {
-					$out[(string) $item['value']] = (string) ($item['label'] ?? $item['value']);
-				}
-			}
-		}
-
-		return $out;
+		return $this->field_processor->get_geo_field_options($field, $type, $state);
 	}
 
 	/**
-	 * Resolve country code from fixed field config or linked country field.
+	 * Resolve country code (delegated to field processor).
 	 */
 	private function resolve_geo_country_code(array $field, array $state = []): string
 	{
-		$country = '';
-		if (!empty($field['country'])) {
-			$country = strtoupper(sanitize_key((string) $field['country']));
-		}
-
-		if ($country === '' && !empty($field['country_field'])) {
-			$key = (string) $field['country_field'];
-			if (isset($state[$key])) {
-				$country = strtoupper(sanitize_key((string) $state[$key]));
-			}
-		}
-
-		return $country;
+		return $this->field_processor->resolve_geo_country_code($field, $state);
 	}
 
 	/**
 	 * Normalize options into [{value,label}] transport format.
-	 *
-	 * Public so services (e.g. REST API service) can use it for geo data normalization.
-	 *
-	 * @param array $options Source options (associative or indexed).
-	 * @param array $mapping Optional key mapping ['value' => '...', 'label' => '...'].
-	 * @return array<int,array{value:string,label:string}>
-	 */
-	public function normalize_options_for_transport(array $options, array $mapping = []): array
-	{
-		$out = [];
-		$value_key = isset($mapping['value']) ? (string) $mapping['value'] : 'value';
-		$label_key = isset($mapping['label']) ? (string) $mapping['label'] : 'label';
-
-		$is_assoc = array_keys($options) !== range(0, count($options) - 1);
-		if ($is_assoc) {
-			foreach ($options as $value => $label) {
-				if (is_array($label)) {
-					$v = $label[$value_key] ?? $value;
-					$l = $label[$label_key] ?? ($label['name'] ?? $v);
-				} else {
-					$v = $value;
-					$l = $label;
-				}
-				$out[] = ['value' => (string) $v, 'label' => (string) $l];
-			}
-		} else {
-			foreach ($options as $item) {
-				if (is_array($item)) {
-					$v = $item[$value_key] ?? ($item['value'] ?? '');
-					$l = $item[$label_key] ?? ($item['label'] ?? $v);
-					if ($v === '') {
-						continue;
-					}
-					$out[] = ['value' => (string) $v, 'label' => (string) $l];
-				}
-			}
-		}
-
-		return $out;
-	}
-
 	/**
 	 * Public helper: return countries as [{code,name,region,capital}].
 	 *
@@ -1077,48 +903,15 @@ final class RL_Options_Framework
 	}
 
 	/**
-	 * Public helper: return normalized subdivisions options for a country.
+	 * Normalize options array for transport (delegated to field processor).
 	 *
-	 * Delegates to REST API service.
+	 * @param array $options Source options (associative or indexed).
+	 * @param array $mapping Optional key mapping ['value' => '...', 'label' => '...'].
+	 * @return array<int,array{value:string,label:string}>
 	 */
-	public function get_country_subdivisions(string $country_code): array
+	public function normalize_options_for_transport(array $options, array $mapping = []): array
 	{
-		return $this->rest_api->get_country_subdivisions_data($country_code);
-	}
-
-	/**
-	 * Public helper: return normalized municipalities options.
-	 *
-	 * Delegates to REST API service.
-	 */
-	public function get_country_municipalities(string $country_code, string $subdivision = ''): array
-	{
-		return $this->rest_api->get_country_municipalities_data($country_code, $subdivision);
-	}
-
-	/**
-	 * Render the full settings page.
-	 */
-	public function render_page(): void
-	{
-		if ($this->render_service) {
-			$this->render_service->render_page();
-		}
-	}
-
-	/**
-	 * Render panel with sidebar navigation.
-	 *
-	 * @param array $tab     Tab configuration.
-	 * @param array $options Current options.
-	 * @deprecated Use render service instead.
-	 */
-	private function render_panel_with_sidebar(array $tab, array $options): void
-	{
-		// Delegated to render service - kept for internal compatibility
-		if ($this->render_service) {
-			$this->render_service->render_panel_with_sidebar($tab, $options);
-		}
+		return $this->field_processor->normalize_options_for_transport($options, $mapping);
 	}
 
 	/**
@@ -1383,57 +1176,25 @@ final class RL_Options_Framework
 	}
 
 	/**
-	 * Validate expected field schema and log warnings for invalid contracts.
+	 * Validate field schema (delegated to field processor).
 	 */
 	private function validate_field_schema(array $field): void
 	{
-		$type = (string) ($field['type'] ?? '');
-		$id = (string) ($field['id'] ?? 'unknown');
-
-		if ('image_select' === $type) {
-			$options = $field['options'] ?? [];
-			if (!is_array($options) || empty($options)) {
-				RL_Logger::warn('image_select field is missing options.', ['field_id' => $id]);
-				return;
-			}
-
-			foreach ($options as $key => $option) {
-				if (!is_array($option) || empty($option['src']) || empty($option['label'])) {
-					RL_Logger::warn('image_select option should define src and label.', [
-						'field_id' => $id,
-						'option_key' => $key,
-					]);
-				}
-			}
-		}
-
-		if ('image' === $type) {
-			if (!empty($field['options'])) {
-				RL_Logger::warn('image field should not define options; use image_select instead.', ['field_id' => $id]);
-			}
-		}
+		$this->field_processor->validate_field_schema($field);
 	}
 
 	public function get_field_label(array $field): string
 	{
-		$label = $field['label'] ?? $field['title'] ?? $field['id'] ?? 'Field';
-		$label = wp_strip_all_tags((string) $label);
-		$label = $this->normalize_field_label($label);
-		return trim($label) !== '' ? $label : ((string) ($field['id'] ?? 'Field'));
+		return $this->field_processor->get_field_label($field);
 	}
 
 	public function normalize_field_label(string $label): string
 	{
-		$normalized = preg_replace('/^\s*(?:[↳➜→\-–—]+\s*)+\s*/u', '', $label);
-		if (null === $normalized) {
-			$normalized = $label;
-		}
-
-		return trim($normalized);
+		return $this->field_processor->normalize_field_label($label);
 	}
 
 	/**
-	 * Sanitize raw value based on field definition.
+	 * Sanitize field value (delegated to field processor).
 	 *
 	 * @param array $field Field definition.
 	 * @param mixed $value Raw value.
@@ -1441,37 +1202,11 @@ final class RL_Options_Framework
 	 */
 	public function sanitize_field_value(array $field, $value)
 	{
-		// Allow custom sanitize callback to take precedence
-		if (isset($field['sanitize_callback']) && is_callable($field['sanitize_callback'])) {
-			return call_user_func($field['sanitize_callback'], $value, $field);
-		}
-
-		// Delegate to field type's processing interface if available
-		$field_type = (string) ($field['type'] ?? 'text');
-		$renderer = $this->field_registry ? $this->field_registry->get($field_type) : null;
-		if ($renderer instanceof RL_Field_Processing_Interface) {
-			return $renderer->sanitize(
-				$field,
-				$value,
-				[
-					'text_domain' => (string) $this->config['text_domain'],
-					'validation_context' => $this->validation_context,
-					'allowed_option_keys_callback' => function (array $f, array $state = []): array {
-						return $this->get_allowed_option_keys($f, $state);
-					},
-					'geo_options_callback' => function (array $f, string $type, array $state = []): array {
-						return $this->get_geo_field_options($f, $type, $state);
-					},
-				]
-			);
-		}
-
-		// Fallback for fields without processing interface
-		return isset($value) ? sanitize_text_field($value) : '';
+		return $this->field_processor->sanitize_field_value($field, $value);
 	}
 
 	/**
-	 * Prepare raw value for validation.
+	 * Prepare value for validation (delegated to field processor).
 	 *
 	 * Ensures number fields always receive a valid numeric fallback when empty
 	 * (for hidden/dependent fields that may not be posted).
@@ -1482,64 +1217,11 @@ final class RL_Options_Framework
 	 */
 	public function prepare_value_for_validation(array $field, $value)
 	{
-		$field_type = $field['type'] ?? '';
-		$renderer = $this->field_registry ? $this->field_registry->get((string) $field_type) : null;
-		if ($renderer instanceof RL_Field_Processing_Interface) {
-			return $renderer->prepare_for_validation(
-				$field,
-				$value,
-				[
-					'text_domain' => (string) $this->config['text_domain'],
-					'validation_context' => $this->validation_context,
-				]
-			);
-		}
-
-		if ('number' !== $field_type) {
-			return $value;
-		}
-
-		if ($value !== null && $value !== '' && is_numeric($value)) {
-			$numeric = $value;
-
-			if (isset($field['min']) && is_numeric($field['min']) && (float) $numeric < (float) $field['min']) {
-				$numeric = $field['min'];
-			}
-
-			if (isset($field['max']) && is_numeric($field['max']) && (float) $numeric > (float) $field['max']) {
-				$numeric = $field['max'];
-			}
-
-			return $numeric;
-		}
-
-		if ($value !== null && $value !== '') {
-			return $value;
-		}
-
-		$fallback = $field['default'] ?? null;
-
-		if (!is_numeric($fallback)) {
-			if (isset($field['min']) && is_numeric($field['min'])) {
-				$fallback = $field['min'];
-			} else {
-				$fallback = 0;
-			}
-		}
-
-		if (isset($field['min']) && is_numeric($field['min']) && (float) $fallback < (float) $field['min']) {
-			$fallback = $field['min'];
-		}
-
-		if (isset($field['max']) && is_numeric($field['max']) && (float) $fallback > (float) $field['max']) {
-			$fallback = $field['max'];
-		}
-
-		return $fallback;
+		return $this->field_processor->prepare_value_for_validation($field, $value);
 	}
 
 	/**
-	 * Validate field value before sanitization.
+	 * Validate field value (delegated to field processor).
 	 *
 	 * @param array  $field Field definition.
 	 * @param mixed  $value Value to validate.
@@ -1548,70 +1230,7 @@ final class RL_Options_Framework
 	 */
 	public function validate_field_value(array $field, $value, string &$error = ''): bool
 	{
-		$field_label = $this->get_field_label($field);
-
-		// Custom validation callback takes precedence
-		if (isset($field['validate_callback']) && is_callable($field['validate_callback'])) {
-			$result = call_user_func($field['validate_callback'], $value, $field);
-			if (is_wp_error($result)) {
-				$error = $result->get_error_message();
-				return false;
-			}
-			if (false === $result) {
-				$error = sprintf(
-					/* translators: %s: field title */
-					__('%s is invalid.', $this->config['text_domain']),
-					$field_label
-				);
-				return false;
-			}
-			return true;
-		}
-
-		// Required field validation
-		if (!empty($field['required']) && ($value === null || $value === '')) {
-			$error = sprintf(
-				/* translators: %s: field title */
-				__('%s is required.', $this->config['text_domain']),
-				$field_label
-			);
-			return false;
-		}
-
-		if (!empty($field['required_if']) && is_array($field['required_if']) && $this->is_required_by_rules($field['required_if'], $this->validation_context) && ($value === null || $value === '')) {
-			$error = sprintf(
-				/* translators: %s: field title */
-				__('%s is required for the selected dependency values.', $this->config['text_domain']),
-				$field_label
-			);
-			return false;
-		}
-
-		// Delegate to field type's processing interface if available
-		$field_type = (string) ($field['type'] ?? 'text');
-		$renderer = $this->field_registry ? $this->field_registry->get($field_type) : null;
-		if ($renderer instanceof RL_Field_Processing_Interface) {
-			return $renderer->validate(
-				$field,
-				$value,
-				$error,
-				[
-					'text_domain' => (string) $this->config['text_domain'],
-					'field_label' => $field_label,
-					'validation_context' => $this->validation_context,
-					'required_checked' => true,
-					'allowed_option_keys_callback' => function (array $f, array $state = []): array {
-						return $this->get_allowed_option_keys($f, $state);
-					},
-					'geo_options_callback' => function (array $f, string $type, array $state = []): array {
-						return $this->get_geo_field_options($f, $type, $state);
-					},
-				]
-			);
-		}
-
-		// Fallback validation for fields without processing interface
-		return true;
+		return $this->field_processor->validate_field_value($field, $value, $error);
 	}
 
 	/**
@@ -1621,20 +1240,7 @@ final class RL_Options_Framework
 	 */
 	public function create_backup()
 	{
-		$settings = get_option($this->config['option_name'], []);
-
-		if (empty($settings)) {
-			return false;
-		}
-
-		$backup = [
-			'created_at' => current_time('mysql'),
-			'version' => $this->config['version'],
-			'settings' => $settings,
-		];
-
-		$backup_key = $this->config['option_name'] . '_backup';
-		return update_option($backup_key, $backup) ? $backup : false;
+		return $this->storage_service->create_backup();
 	}
 
 	/**
@@ -1644,14 +1250,7 @@ final class RL_Options_Framework
 	 */
 	public function restore_backup(): bool
 	{
-		$backup_key = $this->config['option_name'] . '_backup';
-		$backup = get_option($backup_key, false);
-
-		if (empty($backup) || !isset($backup['settings'])) {
-			return false;
-		}
-
-		return update_option($this->config['option_name'], $backup['settings']);
+		return $this->storage_service->restore_backup();
 	}
 
 	/**
@@ -1661,15 +1260,7 @@ final class RL_Options_Framework
 	 */
 	public function export_settings(): string
 	{
-		$settings = get_option($this->config['option_name'], []);
-
-		$export = [
-			'exported_at' => current_time('mysql'),
-			'version' => $this->config['version'],
-			'settings' => $settings,
-		];
-
-		return wp_json_encode($export, JSON_PRETTY_PRINT);
+		return $this->storage_service->export_settings();
 	}
 
 	/**
@@ -1680,26 +1271,7 @@ final class RL_Options_Framework
 	 */
 	public function import_settings(string $json)
 	{
-		$data = json_decode($json, true);
-
-		if (json_last_error() !== JSON_ERROR_NONE) {
-			return new WP_Error(
-				'invalid_json',
-				__('Invalid JSON format.', $this->config['text_domain'])
-			);
-		}
-
-		if (!isset($data['settings']) || !is_array($data['settings'])) {
-			return new WP_Error(
-				'invalid_format',
-				__('Invalid settings format.', $this->config['text_domain'])
-			);
-		}
-
-		// Create backup before import
-		$this->create_backup();
-
-		return update_option($this->config['option_name'], $data['settings']);
+		return $this->storage_service->import_settings($json);
 	}
 
 	/**
@@ -1709,19 +1281,7 @@ final class RL_Options_Framework
 	 */
 	public function reset_to_defaults(): bool
 	{
-		// Create backup before reset
-		$this->create_backup();
-
-		$fields_map = $this->get_fields_index();
-		$defaults = [];
-
-		foreach ($fields_map as $field_id => $field) {
-			if (isset($field['default'])) {
-				$defaults[$field_id] = $field['default'];
-			}
-		}
-
-		return update_option($this->config['option_name'], $defaults);
+		return $this->storage_service->reset_to_defaults();
 	}
 
 	/**

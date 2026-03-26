@@ -3,3 +3,7 @@
 tasks/
 .history/
 
+# Composer
+vendor/
+composer.lock
+

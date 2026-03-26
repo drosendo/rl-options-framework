@@ -2,12 +2,21 @@
 /**
  * Entry point for the RL Options Framework library.
  *
- * Usage:
- *   require_once __DIR__ . '/main.php';
+ * Two supported installation methods:
  *
- * The class_exists guard prevents fatal errors if the framework is
- * accidentally loaded more than once (e.g., by two plugins sharing
- * the same library copy, or via Composer autoloading + manual require).
+ * 1. Manual (drop-in):
+ *    Copy the library folder into your plugin/theme and call:
+ *      require_once __DIR__ . '/path/to/rloptionsFramework/main.php';
+ *
+ * 2. Composer:
+ *    composer require rosendolabs/rl-options-framework
+ *    Then include vendor/autoload.php — this file runs automatically
+ *    via the "files" autoload directive.
+ *
+ * Both methods are safe to use simultaneously. The class_exists guard
+ * below prevents fatal errors if the framework ends up required more
+ * than once (e.g., two plugins bundling the same library, or Composer
+ * autoload + a manual require coexisting in the same project).
  *
  * @package RL_Options_Framework
  * @version 2.2.0

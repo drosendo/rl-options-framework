@@ -638,3 +638,629 @@ my_plugin_options_framework_tabs
 ```
 
 The framework runtime reads only `{option_name}_framework_tabs`.
+
+---
+
+## 13. Requirements & Dependencies
+
+### PHP
+
+- **Minimum:** PHP 7.4+
+- **Recommended:** PHP 8.0+
+- Required extensions: `json`, `filter`
+
+### WordPress
+
+- **Minimum:** WordPress 5.0+
+- **Recommended:** WordPress 6.0+
+- Admin context required (framework only works in wp-admin)
+
+### Browsers
+
+| Browser | Support |
+|---------|---------|
+| Chrome | Latest 2 versions |
+| Firefox | Latest 2 versions |
+| Safari | Latest 2 versions |
+| Edge | Latest 2 versions |
+| IE 11 | Not supported |
+
+---
+
+## 14. Complete Field Definition Schema Reference
+
+### Universal field properties
+
+Every field accepts these properties:
+
+| Property | Type | Default | Required | Description |
+|----------|------|---------|----------|-------------|
+| `id` | `string` | — | ✅ | Unique field identifier within section |
+| `type` | `string` | — | ✅ | Field type (see type reference below) |
+| `label` | `string` | `''` | ❌ | Display label shown to admin |
+| `desc` / `description` | `string` | `''` | ❌ | Help text below field |
+| `placeholder` | `string` | `''` | ❌ | Input placeholder text |
+| `default` | mixed | `null` | ❌ | Default value if option not saved |
+| `required` | `bool` | `false` | ❌ | Enforce non-empty on save |
+| `required_if` | `array` | `[]` | ❌ | Conditional required rules (see Section 5) |
+| `depends_on` | `array` | `[]` | ❌ | List of parent field IDs |
+| `visibility_rules` | `array` | `[]` | ❌ | Show/hide logic based on dependencies |
+| `sanitize_callback` | `callable` | `null` | ❌ | Custom sanitize function |
+| `sanitize` | `callable` | `null` | ❌ | Alias for sanitize_callback |
+| `validate_callback` | `callable` | `null` | ❌ | Custom validation function |
+| `validate` | `callable` | `null` | ❌ | Alias for validate_callback |
+| `class` | `string` | `''` | ❌ | CSS classes for wrapper |
+| `input_class` | `string` | `''` | ❌ | CSS classes for input element |
+| `attr` | `array` | `[]` | ❌ | Additional HTML attributes |
+| `tooltip` | `string` | `''` | ❌ | Inline help (shows on hover) |
+| `show_if` | `array` | `[]` | ❌ | Conditional display rules |
+
+### Type-specific properties
+
+#### `text` / `email` / `url` / `phone` / `postal_code` / `nif`
+
+| Property | Type | Default | Description |
+|----------|------|---------|-------------|
+| `maxlength` | `int` | `''` | Character limit |
+| `pattern` | `string` | `''` | Regex (anchored automatically) |
+| `input_type` | `string` | `text` | HTML input type attribute |
+
+#### `textarea`
+
+| Property | Type | Default | Description |
+|----------|------|---------|-------------|
+| `rows` | `int` | `4` | Number of rows |
+| `maxlength` | `int` | `''` | Character limit |
+
+#### `number`
+
+| Property | Type | Default | Description |
+|----------|------|---------|-------------|
+| `min` | `float\|int` | `''` | Minimum allowed value |
+| `max` | `float\|int` | `''` | Maximum allowed value |
+| `step` | `float\|int` | `1` | Increment step |
+| `fallback` | `float\|int` | `0` | Value if invalid (non-numeric) |
+
+#### `select` / `multiselect` / `radio` / `checkbox`
+
+| Property | Type | Default | Description |
+|----------|------|---------|-------------|
+| `options` | `array` | `[]` | Static key-value options |
+| `options_provider` | `array` | `[]` | Async provider config (see Section 5) |
+| `provider` | `string` | `''` | Shorthand for provider endpoint |
+
+#### `country` / `state` / `city`
+
+| Property | Type | Default | Description |
+|----------|------|---------|-------------|
+| `country` | `string` | `''` | Fixed ISO2 country code |
+| `country_field` | `string` | `''` | Field ID to link country |
+| `subdivision_field` | `string` | `''` | Field ID to link state (for city only) |
+
+#### `country_state_city`
+
+| Property | Type | Default | Description |
+|----------|------|---------|-------------|
+| `country_label` | `string` | `'Country'` | Label for country select |
+| `state_label` | `string` | `'State'` | Label for state select |
+| `city_label` | `string` | `'City'` | Label for city select |
+
+#### `date` / `datetime`
+
+| Property | Type | Default | Description |
+|----------|------|---------|-------------|
+| `min` | `string` | `''` | Minimum date (Y-m-d) |
+| `max` | `string` | `''` | Maximum date (Y-m-d) |
+| `time_step` | `int` | `900` | Time increment in seconds (datetime only) |
+
+#### `color`
+
+| Property | Type | Default | Description |
+|----------|------|---------|-------------|
+| `palette` | `array` | `[]` | Predefined color palette |
+| `alpha` | `bool` | `true` | Allow alpha channel (rgba) |
+
+#### `image` / `image_select`
+
+| Property | Type | Default | Description |
+|----------|------|---------|-------------|
+| `button_label` | `string` | `'Select Image'` | Media picker button text |
+
+#### `html`
+
+| Property | Type | Default | Description |
+|----------|------|---------|-------------|
+| `content` | `string` | `''` | HTML content to display |
+
+#### `toggle` / `checkbox`
+
+| Property | Type | Default | Description |
+|----------|------|---------|-------------|
+| `text` | `string` | `''` | Label text next to checkbox/toggle |
+
+---
+
+## 15. Public API Reference
+
+### Constructor & Initialization
+
+```php
+public function __construct(array $config = []): void
+```
+
+Initialize framework with configuration array. See Section 3 for config keys.
+
+```php
+public function init($plugin = null): void
+```
+
+Boot framework: lock config, instantiate services, register hooks. Call once in `plugins_loaded` or `after_setup_theme`.
+
+```php
+public function boot($plugin): void
+```
+
+Register WordPress menu/submenu and AJAX handlers. Called automatically by `init()` if `register_menu` is `true`.
+
+### Tab/Section/Field Registration
+
+```php
+public function add_tab(array $config): void
+public function set_tabs(array $tabs): void
+
+public function add_section(array $config): void
+
+public function add_field(array $config): void
+```
+
+Register tabs, sections, and fields. Can be called anytime before rendering.
+
+**Keys:**
+
+- Tab: `id` (string), `label` (string), `priority` (int), `sections` (array)
+- Section: `tab_id` (string), `id` (string), `title` (string), `class` (string)
+- Field: See Section 14
+
+### Preset & Bundle Registry
+
+```php
+public function register_field_preset(string $preset_id, array $definition): void
+```
+
+Register reusable field configuration. Usage: `$framework->add_preset_field('tab_id', 'section_id', 'preset_id')`.
+
+```php
+public function register_field_bundle(string $bundle_id, callable $resolver): void
+```
+
+Register field bundle resolver. Resolver signature:
+
+```php
+function($config, $registry): array { return [/* fields */]; }
+```
+
+```php
+public function add_preset_field(string $tab_slug, string $section_id, string $preset_id, array $overrides = []): void
+
+public function add_bundle_fields(string $tab_slug, string $section_id, string $bundle_id, array $config = []): void
+```
+
+Add preset or bundle instance to a section.
+
+```php
+public function presets(): ?RL_Field_Presets
+```
+
+Get preset registry accessor.
+
+### Option Access
+
+```php
+public function get_option(string $key = '', $default = null): mixed
+public function get_options(): array
+```
+
+Retrieve single option or all options. Maps to `get_option('{option_name}')` internally.
+
+```php
+public function set_option(string $key, $value): bool
+```
+
+Update single option.
+
+### Service Accessors
+
+```php
+public function rest_api(): ?RL_Options_Rest_Api
+```
+
+Access REST API service for geo data. See Section 11.
+
+```php
+public function field_registry(): ?RL_Field_Registry
+```
+
+Access field type registry.
+
+### Field Renderer Registration
+
+```php
+public function register_field_renderer(RL_Field_Interface $renderer): void
+```
+
+Register custom field type. Callback must implement `RL_Field_Interface`:
+
+```php
+interface RL_Field_Interface {
+    public function type(): string;
+    public function render(array $field, $value, array $context = []): void;
+}
+```
+
+### Rendering & Display
+
+```php
+public function render_page(): void
+```
+
+Render admin options page. Called by WordPress menu callback if `register_menu` is `true`.
+
+```php
+public function get_country_reference_countries(): array
+
+public function get_country_subdivisions(string $country_code): array
+
+public function get_country_municipalities(string $country_code, string $subdivision): array
+```
+
+Retrieve geo reference data. See Section 6.
+
+```php
+public function normalize_options_for_transport(array $options, array $mapping = []): array
+```
+
+Normalize to `[{value, label}]` format. Used internally; available for custom renderers.
+
+### Validation & Hooks
+
+```php
+public function filter_tabs_by_conditions(array $tabs, array $options): array
+```
+
+Apply visibility rules. Filters tabs based on `show_if` / `visibility_rules`.
+
+```php
+public function register_menu(): void
+```
+
+Register WordPress menu/submenu manually if `register_menu` is `false`.
+
+---
+
+## 16. Validation Rules & Required-If Syntax
+
+### Dependency operators
+
+| Operator | Type | Example | Meaning |
+|----------|------|---------|---------|
+| `equals` | `string\|int\|bool` | `['field' => 'status', 'operator' => 'equals', 'expected' => 'active']` | Field value equals exactly |
+| `in` | `array` | `['field' => 'role', 'operator' => 'in', 'expected' => ['admin', 'editor']]` | Field value is one of |
+| `empty` | `bool` | `['field' => 'optional_text', 'operator' => 'empty', 'expected' => true]` | Field is empty/falsy |
+| `truthy` | `bool` | `['field' => 'has_details', 'operator' => 'truthy', 'expected' => true]` | Field is truthy |
+| `contains` | `string` | `['field' => 'tags', 'operator' => 'contains', 'expected' => 'featured']` | Field value contains string |
+| `match` | `string` | `['field' => 'email', 'operator' => 'match', 'expected' => '^[^@]+@.+$']` | Regex match (anchored) |
+
+### Example: Complex required_if
+
+```php
+'newsletter_frequency' => [
+    'id'    => 'newsletter_frequency',
+    'type'  => 'select',
+    'label' => __('Newsletter Frequency', 'my-plugin'),
+    'options' => [
+        'weekly'  => 'Weekly',
+        'monthly' => 'Monthly',
+        'never'   => 'Never',
+    ],
+    'required_if' => [
+        // Required if email is not empty AND newsletter toggle is ON
+        ['field' => 'email', 'operator' => 'truthy', 'expected' => true],
+        ['field' => 'enable_newsletter', 'operator' => 'equals', 'expected' => true],
+    ],
+],
+```
+
+---
+
+## 17. Callback Signatures
+
+### Custom sanitize callback
+
+```php
+/**
+ * @param mixed $value Current value to sanitize
+ * @param array $field Field definition
+ * @return mixed Sanitized value
+ */
+function my_custom_sanitize($value, $field) {
+    // Return sanitized value
+    return sanitize_text_field($value);
+}
+
+'my_field' => [
+    'id' => 'my_field',
+    'type' => 'text',
+    'sanitize_callback' => 'my_custom_sanitize',
+]
+```
+
+### Custom validate callback
+
+```php
+/**
+ * @param mixed $value Value to validate
+ * @param array $field Field definition
+ * @param array $state All form values
+ * @return array|true Validation result: true for pass, [ 'error' => 'message' ] for fail
+ */
+function my_custom_validate($value, $field, $state) {
+    if (empty($value)) {
+        return true; // Let required rule handle it
+    }
+    
+    if (strlen($value) < 3) {
+        return ['error' => 'Value must be at least 3 characters'];
+    }
+    
+    return true;
+}
+
+'my_field' => [
+    'id' => 'my_field',
+    'type' => 'text',
+    'validate_callback' => 'my_custom_validate',
+]
+```
+
+### Field bundle resolver
+
+```php
+function my_bundle_resolver(array $config, $registry) {
+    $label_prefix = $config['label_prefix'] ?? '';
+    
+    return [
+        [
+            'id' => 'first_name',
+            'type' => 'text',
+            'label' => $label_prefix . ' First Name',
+        ],
+        [
+            'id' => 'last_name',
+            'type' => 'text',
+            'label' => $label_prefix . ' Last Name',
+        ],
+    ];
+}
+
+$framework->register_field_bundle('name_pair', 'my_bundle_resolver');
+```
+
+---
+
+## 18. Common Patterns & Recipes
+
+### Pattern 1: Multi-step form with conditional sections
+
+```php
+$framework->add_tab([
+    'id'    => 'onboarding',
+    'label' => __('Onboarding', 'my-plugin'),
+]);
+
+$framework->add_section([
+    'tab_id' => 'onboarding',
+    'id'     => 'step1_business',
+    'title'  => __('Business Type', 'my-plugin'),
+]);
+
+$framework->add_field([
+    'tab_id'     => 'onboarding',
+    'section_id' => 'step1_business',
+    'id'         => 'business_type',
+    'type'       => 'select',
+    'label'      => __('Business Type', 'my-plugin'),
+    'options'    => [
+        'partnership'   => 'Partnership',
+        'sole_trader'   => 'Sole Trader',
+        'company'       => 'Limited Company',
+    ],
+]);
+
+// Show only for partnerships
+$framework->add_section([
+    'tab_id'     => 'onboarding',
+    'id'         => 'step2_partners',
+    'title'      => __('Partner Details', 'my-plugin'),
+    'show_if'    => [
+        ['field' => 'business_type', 'operator' => 'equals', 'expected' => 'partnership'],
+    ],
+]);
+
+$framework->add_field([
+    'tab_id'       => 'onboarding',
+    'section_id'   => 'step2_partners',
+    'id'           => 'num_partners',
+    'type'         => 'number',
+    'label'        => __('Number of Partners', 'my-plugin'),
+    'required_if'  => [
+        ['field' => 'business_type', 'operator' => 'equals', 'expected' => 'partnership'],
+    ],
+]);
+```
+
+### Pattern 2: Geographic location form with cascading selects
+
+```php
+$framework->add_field([
+    'tab_id'       => 'location',
+    'section_id'   => 'address',
+    'id'           => 'office_country',
+    'type'         => 'country',
+    'label'        => __('Country', 'my-plugin'),
+    'required'     => true,
+]);
+
+$framework->add_field([
+    'tab_id'        => 'location',
+    'section_id'    => 'address',
+    'id'            => 'office_region',
+    'type'          => 'state',
+    'label'         => __('Region / State', 'my-plugin'),
+    'country_field' => 'office_country',
+    'depends_on'    => ['office_country'],
+    'required_if'   => [
+        ['field' => 'office_country', 'operator' => 'truthy', 'expected' => true],
+    ],
+]);
+
+$framework->add_field([
+    'tab_id'            => 'location',
+    'section_id'        => 'address',
+    'id'                => 'office_city',
+    'type'              => 'city',
+    'label'             => __('City', 'my-plugin'),
+    'country_field'     => 'office_country',
+    'subdivision_field' => 'office_region',
+    'depends_on'        => ['office_country', 'office_region'],
+]);
+```
+
+### Pattern 3: Email subscription with validation
+
+```php
+$framework->add_field([
+    'tab_id'     => 'general',
+    'section_id' => 'contact',
+    'id'         => 'contact_email',
+    'type'       => 'email',
+    'label'      => __('Contact Email', 'my-plugin'),
+    'required'   => true,
+    'validate_callback' => function($value, $field, $state) {
+        // Built-in email validation handles basic checks
+        // Add custom checks here
+        if (strpos($value, '+') !== false) {
+            return ['error' => 'Email aliases (+) not supported'];
+        }
+        return true;
+    },
+]);
+
+$framework->add_field([
+    'tab_id'     => 'general',
+    'section_id' => 'contact',
+    'id'         => 'subscribe_newsletter',
+    'type'       => 'toggle',
+    'label'      => __('Subscribe to Newsletter', 'my-plugin'),
+    'text'       => __('Yes, subscribe me', 'my-plugin'),
+]);
+
+$framework->add_field([
+    'tab_id'      => 'general',
+    'section_id'  => 'contact',
+    'id'          => 'newsletter_frequency',
+    'type'        => 'radio',
+    'label'       => __('Newsletter Frequency', 'my-plugin'),
+    'options'     => [
+        'daily'   => 'Daily Digest',
+        'weekly'  => 'Weekly Newsletter',
+        'monthly' => 'Monthly Summary',
+    ],
+    'depends_on'     => ['subscribe_newsletter'],
+    'required_if'    => [
+        ['field' => 'subscribe_newsletter', 'operator' => 'equals', 'expected' => true],
+    ],
+]);
+```
+
+---
+
+## 19. Troubleshooting & FAQ
+
+### Issue: Fields not appearing
+
+**Check:**
+1. Is `init()` called on `plugins_loaded`?
+2. Are tab/section IDs spelled consistently?
+3. Are `$section_id` keys matching between `add_section` and `add_field`?
+4. Run: `echo json_encode($framework->rest_api()->get_schema());` to inspect schema
+
+### Issue: Validation not firing
+
+**Check:**
+1. Is `required` or `required_if` set?
+2. Is custom `validate_callback` returning true for valid, array for errors?
+3. Check browser console for AJAX errors
+4. Verify nonce is present: `wp_nonce_field('rl_options_save', 'rl_options_nonce')`
+
+### Issue: Async options not loading
+
+**Check:**
+1. Is REST API registered? `get_transient('rl_options_rest_initialized')`
+2. Is `options_provider` config correct? Should have `endpoint` key
+3. Check Network tab: is `/wp-json/rl-options/v1/*` responding?
+4. Is field `depends_on` correct?
+
+### Issue: Geo fields (country/state/city) showing no options
+
+**Check:**
+1. Is REST API warmed? `get_transient('rl_options_geo_countries')`
+2. Try clearing transients: `delete_transients_like('rl_options%')`
+3. Check `RL_Logger` debug output if `debug_level` is `debug`
+4. Is data source responding? `curl https://restcountries.com/v3.1/all?fields=cca2,name,region,capital`
+
+### Q: Can I use this outside WordPress admin?
+
+**A:** No. Framework is designed for admin context only (tabs, admin styles, nonces). For frontend use, integrate only the field type classes.
+
+### Q: Does framework track save history?
+
+**A:** No. Use backup/restore features or implement custom logging with `rl_options_framework_option_saved` hook.
+
+### Q: Can I migrate from older framework versions?
+
+**A:** Yes. Hook names changed; update any `my_plugin_settings_tabs` filters to `my_plugin_options_framework_tabs`. See Section 12.
+
+### Q: How do I add custom CSS?
+
+**A:** Use `'class'` and `'input_class'` on fields, or hook `wp_enqueue_scripts` to load theme CSS.
+
+---
+
+## 20. Error Messages Reference
+
+### Validation errors
+
+| Error | Trigger | Message |
+|-------|---------|---------|
+| `field_required` | `required: true` + empty | `"This field is required"` |
+| `field_required_if` | `required_if` rules matched + empty | `"This field is required"` |
+| `field_invalid_email` | `type: 'email'` + invalid format | `"Invalid email address"` |
+| `field_invalid_url` | `type: 'url'` + invalid URL | `"Invalid URL"` |
+| `field_invalid_phone` | `type: 'phone'` + invalid format | `"Invalid phone number"` |
+| `field_invalid_nif` | `type: 'nif'` + invalid PT NIF | `"Invalid NIF"` |
+| `field_invalid_date` | `type: 'date'` + invalid format | `"Invalid date (YYYY-MM-DD)"` |
+| `field_pattern_mismatch` | `pattern` regex no match | `"Value does not match required format"` |
+| `field_min_length` | text < minlength | `"Minimum length: N characters"` |
+| `field_max_length` | text > maxlength | `"Maximum length: N characters"` |
+| `field_min_value` | number < min | `"Minimum value: N"` |
+| `field_max_value` | number > max | `"Maximum value: N"` |
+
+### AJAX errors
+
+| Error | Cause | Response |
+|-------|-------|----------|
+| `invalid_nonce` | Nonce missing/invalid | HTTP 403 + `"Security check failed"` |
+| `insufficient_capability` | User can't manage options | HTTP 403 + `"Insufficient permissions"` |
+| `invalid_payload` | Malformed request body | HTTP 400 + `"Invalid request"` |
+| `save_failed` | `update_option()` returned false | HTTP 500 + `"Failed to save options"` |
+| `validation_failed` | Field validation error | HTTP 422 + validation details |

@@ -1348,6 +1348,18 @@ final class RL_Options_Framework
 
 
 	/**
+	 * Render the main options page (WordPress admin page callback).
+	 *
+	 * Delegates to render service.
+	 */
+	public function render_page(): void
+	{
+		if ($this->render_service) {
+			$this->render_service->render_page();
+		}
+	}
+
+	/**
 	 * Filter tabs based on show_if conditions.
 	 *
 	 * Delegates to schema manager.

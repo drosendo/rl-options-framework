@@ -1,0 +1,54 @@
+{
+    "name": "rosendolabs/rl-options-framework",
+    "description": "Portable WordPress admin options framework with validation, async providers, field types, and geo metadata support.",
+    "keywords": ["wordpress", "options", "settings", "admin", "framework", "plugin"],
+    "type": "library",
+    "license": "GPL-2.0-or-later",
+    "version": "2.2.0",
+    "authors": [
+        {
+            "name": "Rosendo Labs",
+            "homepage": "https://rosendolabs.com"
+        }
+    ],
+    "require": {
+        "php": ">=7.4",
+        "ext-json": "*",
+        "ext-filter": "*"
+    },
+    "require-dev": {
+        "phpunit/phpunit": "^10.0"
+    },
+    "suggest": {
+        "roots/wordpress": "WordPress core (required at runtime, not bundled)"
+    },
+    "autoload": {
+        "classmap": [
+            "class-rl-logger.php",
+            "class-rl-options-framework.php",
+            "class-rl-field-presets.php",
+            "class-rl-field-types.php",
+            "fields/",
+            "services/"
+        ],
+        "files": [
+            "main.php"
+        ]
+    },
+    "config": {
+        "optimize-autoloader": true,
+        "sort-packages": true
+    },
+    "extra": {
+        "wordpress-install-dir": "public",
+        "branch-alias": {
+            "dev-main": "2.x-dev"
+        }
+    },
+    "scripts": {
+        "test": "phpunit",
+        "lint": "find . -name '*.php' -not -path './vendor/*' | xargs php -l"
+    },
+    "minimum-stability": "stable",
+    "prefer-stable": true
+}

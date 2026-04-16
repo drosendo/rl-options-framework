@@ -156,7 +156,7 @@ add_action('my_project_options_framework_boot', function(RL_Options_Framework $f
 | `country_state_city` | `array` | Combined location payload |
 | `date` | `string` | `Y-m-d` |
 | `datetime` | `string` | `Y-m-d H:i` |
-| `html` | n/a | Read-only HTML block |
+| `html` | n/a | Read-only HTML block sanitized with `wp_kses` |
 
 ### 4.1 `country` field
 
@@ -313,7 +313,42 @@ jQuery UI datepicker + native time input.
 - No migration needed for existing datetime fields.
 - Datepicker localization uses `wp_localize_jquery_ui_datepicker()`.
 
-### 4.7 `image_select` schema
+### 4.7 `html` field
+
+#### What it is
+
+Read-only HTML content block for admin-only help, notices, and structured markup.
+
+#### How to use
+
+```php
+'help_text' => [
+    'id'   => 'help_text',
+    'type' => 'html',
+    'html' => '<div class="notice notice-info"><p>' . __( 'This is an info box.', 'my-plugin' ) . '</p></div>',
+],
+```
+
+#### Supported keys
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `html` | `string` | `''` | HTML markup rendered inside the field wrapper |
+| `allowed_html` | `array` | `wp_kses_allowed_html('post')` | Optional `wp_kses` allowlist override |
+
+#### Saved value format
+
+- No option value is stored. The field is render-only.
+
+#### Validation and sanitization rules
+
+- The `html` field does not participate in save sanitization because it is not persisted.
+- Rendered markup is sanitized with `wp_kses()`.
+- Default allowed tags use `wp_kses_allowed_html('post')`.
+- You may override the allowlist per field with `allowed_html` or globally with the `rl_options_framework_html_allowed_html` filter.
+- Do not rely on this field for arbitrary trusted admin HTML; explicit allowlists are required for non-standard markup.
+
+### 4.8 `image_select` schema
 
 ```php
 'options' => [
@@ -547,6 +582,9 @@ rl_options_framework_get_country_municipalities('PT', 'lisboa');
 
 - All AJAX endpoints validate nonce and user capability.
 - Incoming request params are sanitized before use.
+- Imports are validated and sanitized against the registered field schema before being saved.
+- The `html` field sanitizes rendered markup with `wp_kses()` and a configurable allowlist.
+- Remote geo reference sources are fetched over HTTPS with `wp_safe_remote_get()`.
 
 ### Performance
 
@@ -728,6 +766,13 @@ Every field accepts these properties:
 | `options` | `array` | `[]` | Static key-value options |
 | `options_provider` | `array` | `[]` | Async provider config (see Section 5) |
 | `provider` | `string` | `''` | Shorthand for provider endpoint |
+
+#### `html`
+
+| Property | Type | Default | Description |
+|----------|------|---------|-------------|
+| `html` | `string` | `''` | Render-only HTML markup |
+| `allowed_html` | `array` | `wp_kses_allowed_html('post')` | Optional `wp_kses` allowlist for rendered markup |
 
 #### `country` / `state` / `city`
 

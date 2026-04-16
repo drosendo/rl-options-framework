@@ -24,6 +24,7 @@ A robust, flexible, **plugin-agnostic** options framework for WordPress plugins 
 - Conditional tab visibility
 - Field validation with custom validators
 - Field sanitization per type
+- Schema-aware import sanitization and validation
 - Priority-based sorting (tabs, sections, fields)
 - Backup and restore functionality
 - Import/export settings as JSON
@@ -262,6 +263,8 @@ $value = $framework->get_option( 'enabled', false );
 ]
 ```
 
+`html` field markup is sanitized with `wp_kses()` before rendering. To allow custom tags or attributes, pass an `allowed_html` array in the field definition.
+
 ## Advanced Features
 
 ### Conditional Field Display
@@ -376,6 +379,8 @@ $result = $framework->import_settings( $json );
 $framework->reset_to_defaults();
 ```
 
+Imported settings are validated and sanitized against the registered field schema before they are saved. Unknown field IDs are discarded.
+
 ## Filter Hooks
 
 ### Main Tabs Filter
@@ -484,6 +489,12 @@ This framework is designed to be portable and can be used in any WordPress plugi
 Developed by Rosendo Labs as a generic, reusable options framework for WordPress plugins.
 
 ## Changelog
+
+### 2.1.1
+- Hardened `html` fields to sanitize rendered markup with a configurable allowlist
+- Hardened JSON imports to validate and sanitize recognized fields before saving
+- Removed nonce value logging from AJAX save debug logs
+- Restricted remote geo reference fetches to HTTPS via `wp_safe_remote_get()`
 
 ### 2.1.0
 - Added `datetime` field type with WordPress datepicker calendar + time input

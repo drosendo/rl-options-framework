@@ -115,9 +115,60 @@ class RL_Options_Storage_Service {
 			);
 		}
 
+		$fields_map   = $this->framework->get_fields_index();
+		$raw_settings = $data['settings'];
+		$input        = [];
+		foreach ( $fields_map as $field_id => $field ) {
+			if ( array_key_exists( $field_id, $raw_settings ) ) {
+				$input[ $field_id ] = $raw_settings[ $field_id ];
+			}
+		}
+
+		if ( empty( $input ) && ! empty( $raw_settings ) ) {
+			return new WP_Error(
+				'invalid_settings_payload',
+				__( 'Imported settings do not contain any recognized framework fields.', $config['text_domain'] )
+			);
+		}
+
+		$this->framework->set_validation_context( $input );
+		$sanitized         = [];
+		$validation_errors = [];
+
+		foreach ( $fields_map as $field_id => $field ) {
+			if ( ! array_key_exists( $field_id, $input ) ) {
+				continue;
+			}
+
+			$value = $this->framework->prepare_value_for_validation( $field, $input[ $field_id ] );
+			$error = '';
+
+			if ( ! $this->framework->validate_field_value( $field, $value, $error ) ) {
+				$validation_errors[ $field_id ] = $error !== ''
+					? $error
+					: sprintf(
+						__( 'Invalid value for %s.', $config['text_domain'] ),
+						$this->framework->get_field_label( $field )
+					);
+				continue;
+			}
+
+			$sanitized[ $field_id ] = $this->framework->sanitize_field_value( $field, $value );
+		}
+
+		$this->framework->set_validation_context( [] );
+
+		if ( ! empty( $validation_errors ) ) {
+			return new WP_Error(
+				'invalid_settings_payload',
+				implode( ' ', array_values( $validation_errors ) ),
+				[ 'errors' => $validation_errors ]
+			);
+		}
+
 		$this->create_backup();
 
-		return update_option( $config['option_name'], $data['settings'] );
+		return update_option( $config['option_name'], $sanitized );
 	}
 
 	/**

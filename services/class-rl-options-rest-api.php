@@ -325,8 +325,19 @@ class RL_Options_Rest_Api {
 			return [];
 		}
 
+		$scheme = strtolower( (string) wp_parse_url( $url, PHP_URL_SCHEME ) );
+		if ( $scheme !== 'https' ) {
+			return [];
+		}
+
 		$timeout  = max( 2, min( 12, (int) ( $source['timeout'] ?? 6 ) ) );
-		$response = wp_remote_get( $url, [ 'timeout' => $timeout ] );
+		$response = wp_safe_remote_get(
+			$url,
+			[
+				'timeout'    => $timeout,
+				'redirection' => 3,
+			]
+		);
 		if ( is_wp_error( $response ) ) {
 			return [];
 		}

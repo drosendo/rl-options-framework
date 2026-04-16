@@ -181,7 +181,6 @@ class RL_Options_Admin_Handler {
 		RL_Logger::debug( '========== AJAX SAVE HANDLER CALLED ==========' );
 		RL_Logger::debug( 'POST data keys: ' . implode( ', ', array_keys( $_POST ) ) );
 		RL_Logger::debug( 'Expected nonce action: ' . $this->framework->get_config( 'ajax_action' ) . '_nonce' );
-		RL_Logger::debug( 'Nonce value from POST: ' . ( $_POST['nonce'] ?? 'NOT SET' ) );
 		RL_Logger::debug( 'Action from POST: ' . ( $_POST['action'] ?? 'NOT SET' ) );
 
 		// Verify nonce (accept AJAX nonce and fallback to form nonce).

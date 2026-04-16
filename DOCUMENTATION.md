@@ -585,6 +585,7 @@ rl_options_framework_get_country_municipalities('PT', 'lisboa');
 - Imports are validated and sanitized against the registered field schema before being saved.
 - The `html` field sanitizes rendered markup with `wp_kses()` and a configurable allowlist.
 - Remote geo reference sources are fetched over HTTPS with `wp_safe_remote_get()`.
+- Logger context redacts sensitive keys such as nonce/token/password/secret values.
 
 ### Performance
 

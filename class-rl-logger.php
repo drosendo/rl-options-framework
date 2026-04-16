@@ -63,6 +63,7 @@ final class RL_Logger {
 
 		if ( ! empty( $context ) ) {
 			foreach ( $context as $item ) {
+				$item = self::sanitize_context_for_log( $item );
 				if ( is_array( $item ) || is_object( $item ) ) {
 					$formatted_message .= ' ' . print_r( $item, true );
 				} else {
@@ -72,6 +73,35 @@ final class RL_Logger {
 		}
 
 		return $formatted_message;
+	}
+
+	/**
+	 * Remove sensitive values from context before writing logs.
+	 *
+	 * @param mixed $value Context item.
+	 * @return mixed
+	 */
+	private static function sanitize_context_for_log( $value ) {
+		if ( is_array( $value ) ) {
+			$sanitized = [];
+			foreach ( $value as $key => $item ) {
+				$key_string = is_string( $key ) ? strtolower( $key ) : '';
+				if ( $key_string !== '' && preg_match( '/(nonce|token|password|secret|api[_-]?key|authorization|cookie|set-cookie)/i', $key_string ) ) {
+					$sanitized[ $key ] = '[REDACTED]';
+					continue;
+				}
+
+				$sanitized[ $key ] = self::sanitize_context_for_log( $item );
+			}
+
+			return $sanitized;
+		}
+
+		if ( is_object( $value ) ) {
+			return self::sanitize_context_for_log( (array) $value );
+		}
+
+		return $value;
 	}
 
 	private static function write( string $level, string $message, ...$context ): void {

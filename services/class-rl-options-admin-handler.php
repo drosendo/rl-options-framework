@@ -56,7 +56,6 @@ class RL_Options_Admin_Handler {
 		RL_Logger::debug( 'Total fields registered: ' . count( $fields_map ) );
 
 		$input = wp_unslash( $_POST[ $this->framework->get_config( 'form_field_prefix' ) ] ?? [] );
-		RL_Logger::debug( 'Raw POST data keys: ' . implode( ', ', array_keys( $_POST ) ) );
 		RL_Logger::debug( 'Form field prefix: ' . $this->framework->get_config( 'form_field_prefix' ) );
 
 		if ( ! is_array( $input ) ) {
@@ -66,7 +65,6 @@ class RL_Options_Admin_Handler {
 		$this->framework->set_validation_context( $input );
 
 		RL_Logger::debug( 'Submitted field count: ' . count( $input ) );
-		RL_Logger::debug( 'Submitted fields: ' . implode( ', ', array_keys( $input ) ) );
 
 		$saved = get_option( $this->framework->get_config( 'option_name' ), [] );
 		if ( ! is_array( $saved ) ) {
@@ -151,11 +149,6 @@ class RL_Options_Admin_Handler {
 		do_action( $this->framework->get_config( 'option_name' ) . '_settings_saved', $saved );
 		do_action( 'rl_options_framework_settings_saved', $saved, $this->framework->get_config(), $this->framework );
 
-		// Verify what was actually saved.
-		$verification = get_option( $this->framework->get_config( 'option_name' ) );
-		if ( isset( $verification['slider_position'] ) ) {
-			RL_Logger::debug( 'Verified slider_position in DB: "' . $verification['slider_position'] . '"' );
-		}
 		RL_Logger::debug( '========== SAVE HANDLER END ==========' );
 
 		$message_param = $this->framework->get_config( 'form_field_prefix' ) . '_message';
@@ -179,9 +172,7 @@ class RL_Options_Admin_Handler {
 	 */
 	public function handle_ajax_save(): void {
 		RL_Logger::debug( '========== AJAX SAVE HANDLER CALLED ==========' );
-		RL_Logger::debug( 'POST data keys: ' . implode( ', ', array_keys( $_POST ) ) );
 		RL_Logger::debug( 'Expected nonce action: ' . $this->framework->get_config( 'ajax_action' ) . '_nonce' );
-		RL_Logger::debug( 'Action from POST: ' . ( $_POST['action'] ?? 'NOT SET' ) );
 
 		// Verify nonce (accept AJAX nonce and fallback to form nonce).
 		$ajax_nonce_action = $this->framework->get_config( 'ajax_action' ) . '_nonce';
@@ -305,11 +296,6 @@ class RL_Options_Admin_Handler {
 		do_action( $this->framework->get_config( 'option_name' ) . '_settings_saved', $saved );
 		do_action( 'rl_options_framework_settings_saved', $saved, $this->framework->get_config(), $this->framework );
 
-		// Verify what was actually saved.
-		$verification = get_option( $this->framework->get_config( 'option_name' ) );
-		if ( isset( $verification['slider_position'] ) ) {
-			RL_Logger::debug( 'AJAX verified slider_position in DB: "' . $verification['slider_position'] . '"' );
-		}
 		RL_Logger::debug( '========== AJAX SAVE END ==========' );
 
 		wp_send_json_success(

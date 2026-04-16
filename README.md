@@ -495,6 +495,7 @@ Developed by Rosendo Labs as a generic, reusable options framework for WordPress
 - Hardened JSON imports to validate and sanitize recognized fields before saving
 - Removed nonce value logging from AJAX save debug logs
 - Restricted remote geo reference fetches to HTTPS via `wp_safe_remote_get()`
+- Added logger context redaction for sensitive keys (nonce/token/password/secret)
 
 ### 2.1.0
 - Added `datetime` field type with WordPress datepicker calendar + time input

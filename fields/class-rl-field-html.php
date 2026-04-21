@@ -18,6 +18,14 @@ class RL_Field_Html implements RL_Field_Interface
 			return;
 		}
 
+		// HTML fields are framework-defined trusted markup and may include inline scripts.
+		// Keep legacy behavior by default; opt into sanitization per field when needed.
+		$sanitize = isset($field['sanitize_html']) ? (bool) $field['sanitize_html'] : false;
+		if (!$sanitize) {
+			echo $html; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+			return;
+		}
+
 		$allowed_html = $field['allowed_html'] ?? wp_kses_allowed_html('post');
 		if (!is_array($allowed_html)) {
 			$allowed_html = wp_kses_allowed_html('post');

@@ -755,15 +755,16 @@
 			return Promise.resolve(true);
 		}
 
-		const payload = {
-			action: framework.validate_action,
-			nonce: framework.nonce,
-			field_id: fieldId,
-		};
-
+		const payload = {};
 		Array.from(new FormData(form).entries()).forEach(([key, value]) => {
-			payload[key] = value;
+			if (key !== 'action' && key !== 'nonce') {
+				payload[key] = value;
+			}
 		});
+
+		payload.action = framework.validate_action;
+		payload.nonce = framework.nonce;
+		payload.field_id = fieldId;
 
 		return $.post(framework.ajax_url, payload).then((response) => {
 			if (response && response.success) {
@@ -1003,10 +1004,14 @@
 			switch (operator) {
 				case 'equals':
 				case '==':
-					return fieldValue === compareValue;
+					if (fieldValue === true && compareValue === '1') return true;
+					if (fieldValue === false && compareValue === '0') return true;
+					return String(fieldValue) === String(compareValue);
 				case 'not_equals':
 				case '!=':
-					return fieldValue !== compareValue;
+					if (fieldValue === true && compareValue === '1') return false;
+					if (fieldValue === false && compareValue === '0') return false;
+					return String(fieldValue) !== String(compareValue);
 				case '>':
 				case 'greater_than':
 					return Number(fieldValue) > Number(compareValue);
@@ -1244,30 +1249,7 @@
 			// Remove default submit handler
 			$form.off('submit').on('submit', function(e) {
 				e.preventDefault();
-				const formEl = this;
-				const candidateFields = Array.from(formEl.querySelectorAll('.rl-field[data-required-if], .rl-field.has-options-provider, .rl-field.has-dependencies'));
-				if (candidateFields.length) {
-					Promise.all(candidateFields.map((wrapper) => validateFieldInline(formEl, wrapper))).then((results) => {
-						if (results.every(Boolean)) {
-							$(formEl).trigger('rl:validated-submit');
-							return;
-						}
-
-						const firstInvalid = formEl.querySelector('.rl-field.rl-field-inline-error-active');
-						if (firstInvalid) {
-							const fieldId = firstInvalid.dataset.fieldId || '';
-							focusInvalidField(fieldId, {});
-						}
-						safeSwal({
-							icon: 'error',
-							title: 'Validation Error',
-							text: 'Please fix the highlighted fields before saving.',
-							confirmButtonText: 'OK'
-						}, 'Please fix the highlighted fields before saving.');
-					});
-					return;
-				}
-				$(formEl).trigger('rl:validated-submit');
+				$(this).trigger('rl:validated-submit');
 			}).off('rl:validated-submit').on('rl:validated-submit', function() {
 				
 				rlLog('='.repeat(70));

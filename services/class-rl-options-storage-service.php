@@ -193,6 +193,7 @@ class RL_Options_Storage_Service {
 			}
 		}
 
+
 		$result = update_option( $option_name, $defaults );
 
 		do_action( "rl_options_after_reset_{$option_name}", $defaults );

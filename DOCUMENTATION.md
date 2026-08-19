@@ -42,6 +42,8 @@ Runtime hook names are derived from `option_name`.
 |----------|---------|---------|
 | Tabs filter | `{option_name}_framework_tabs` | `my_project_options_framework_tabs` |
 | Boot action | `{option_name}_framework_boot` | `my_project_options_framework_boot` |
+| Before reset action | `rl_options_before_reset_{option_name}` | `rl_options_before_reset_my_project_options` |
+| After reset action | `rl_options_after_reset_{option_name}` | `rl_options_after_reset_my_project_options` |
 
 ### Example
 
@@ -913,6 +915,12 @@ public function set_option(string $key, $value): bool
 ```
 
 Update single option.
+
+```php
+public function reset_to_defaults(): bool
+```
+
+Reset all framework options to their default values, creating a backup first. Fires `rl_options_before_reset` and `rl_options_after_reset` hooks.
 
 ### Service Accessors
 

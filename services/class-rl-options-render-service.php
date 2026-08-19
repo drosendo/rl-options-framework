@@ -528,11 +528,13 @@ class RL_Options_Render_Service
 			}
 		}
 
+		$display_value = is_scalar($value) ? (string) $value : wp_json_encode($value);
+
 		printf(
 			'<input type="text" id="%1$s" name="%2$s" value="%3$s" class="regular-text" />',
 			esc_attr($input_id),
 			esc_attr($field_name),
-			esc_attr((string) $value)
+			esc_attr($display_value)
 		);
 	}
 }

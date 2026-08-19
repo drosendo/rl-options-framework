@@ -178,8 +178,12 @@ class RL_Options_Storage_Service {
 	 */
 	public function reset_to_defaults(): bool {
 		$config     = $this->framework->config;
+		$option_name = $config['option_name'];
 		$fields_map = $this->framework->get_fields_index();
 		$defaults   = [];
+
+		do_action( "rl_options_before_reset_{$option_name}" );
+		do_action( 'rl_options_before_reset', $option_name );
 
 		$this->create_backup();
 
@@ -189,6 +193,11 @@ class RL_Options_Storage_Service {
 			}
 		}
 
-		return update_option( $config['option_name'], $defaults );
+		$result = update_option( $option_name, $defaults );
+
+		do_action( "rl_options_after_reset_{$option_name}", $defaults );
+		do_action( 'rl_options_after_reset', $option_name, $defaults );
+
+		return $result;
 	}
 }

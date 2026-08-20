@@ -327,7 +327,7 @@ class RL_Options_Render_Service
 			printf(
 				'<label class="rl-field-label" for="%1$s">%2$s',
 				esc_attr($this->framework->get_input_id($field_id)),
-				esc_html($field_label)
+				wp_kses_post($field_label)
 			);
 			if (!empty($field_desc)) {
 				$tooltip_desc = $this->format_tooltip_content((string) $field_desc);

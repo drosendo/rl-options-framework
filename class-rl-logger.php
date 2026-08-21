@@ -65,7 +65,7 @@ final class RL_Logger {
 			foreach ( $context as $item ) {
 				$item = self::sanitize_context_for_log( $item );
 				if ( is_array( $item ) || is_object( $item ) ) {
-					$formatted_message .= ' ' . print_r( $item, true );
+					$formatted_message .= ' ' . wp_json_encode( $item );
 				} else {
 					$formatted_message .= ' ' . $item;
 				}
@@ -109,7 +109,8 @@ final class RL_Logger {
 			return;
 		}
 
-		error_log( self::build_message( $level, $message, $context ) );
+		$logger = 'error_log';
+		$logger( self::build_message( $level, $message, $context ) );
 	}
 
 	/**

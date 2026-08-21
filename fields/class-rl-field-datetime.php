@@ -48,12 +48,12 @@ class RL_Field_Datetime implements RL_Field_Interface, RL_Field_Processing_Inter
 
 		$raw = trim(sanitize_text_field((string) $value));
 		if (preg_match('/^\d{4}-\d{2}-\d{2}\s\d{2}:\d{2}$/', $raw) && false !== strtotime($raw)) {
-			return date('Y-m-d H:i', strtotime($raw));
+			return gmdate('Y-m-d H:i', strtotime($raw));
 		}
 
 		$fallback = trim((string) ($field['default'] ?? ''));
 		if ($fallback !== '' && preg_match('/^\d{4}-\d{2}-\d{2}\s\d{2}:\d{2}$/', $fallback) && false !== strtotime($fallback)) {
-			return date('Y-m-d H:i', strtotime($fallback));
+			return gmdate('Y-m-d H:i', strtotime($fallback));
 		}
 
 		return '';

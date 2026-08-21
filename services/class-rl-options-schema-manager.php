@@ -183,17 +183,6 @@ class RL_Options_Schema_Manager {
 	public function normalize_conditions( array $item ): array {
 		$conditions = $item['conditions'] ?? [];
 
-		// Support legacy 'show_if' or 'visibility_rules' aliases, including typo 'show_if '
-		if ( empty( $conditions ) ) {
-			if ( ! empty( $item['show_if'] ) ) {
-				$conditions = $item['show_if'];
-			} elseif ( ! empty( $item['show_if '] ) ) {
-				$conditions = $item['show_if '];
-			} elseif ( ! empty( $item['visibility_rules'] ) ) {
-				$conditions = $item['visibility_rules'];
-			}
-		}
-
 		if ( ! empty( $conditions ) && is_array( $conditions ) ) {
 			// Support single condition array not wrapped in another array
 			if ( isset( $conditions['field'] ) ) {
@@ -211,15 +200,6 @@ class RL_Options_Schema_Manager {
 								'value'    => true,
 							]
 						);
-
-						// Handle legacy WPSF format where value might be an array
-						if ( is_array( $condition['value'] ) && $condition['operator'] === 'equals' ) {
-							if ( count( $condition['value'] ) === 1 ) {
-								$condition['value'] = reset( $condition['value'] );
-							} elseif ( count( $condition['value'] ) > 1 ) {
-								$condition['operator'] = 'in';
-							}
-						}
 
 						return $condition;
 					},

@@ -726,8 +726,6 @@ Every field accepts these properties:
 | `required_if` | `array` | `[]` | ❌ | Conditional required rules (see Section 5) |
 | `depends_on` | `array` | `[]` | ❌ | List of parent field IDs |
 | `conditions` | `array` | `[]` | ❌ | Visibility rules (JS frontend / Backend filtering) |
-| `visibility_rules` | `array` | `[]` | ❌ | Alias for `conditions` |
-| `show_if` | `array` | `[]` | ❌ | Alias for `conditions` (Legacy WPSF format supported) |
 | `sanitize_callback` | `callable` | `null` | ❌ | Custom sanitize function |
 | `sanitize` | `callable` | `null` | ❌ | Alias for sanitize_callback |
 | `validate_callback` | `callable` | `null` | ❌ | Custom validation function |
@@ -866,8 +864,8 @@ Register tabs, sections, and fields. Can be called anytime before rendering.
 
 **Keys:**
 
-- Tab: `id` (string), `label` (string), `priority` (int), `sections` (array), `conditions` (array - aliases: `show_if`, `visibility_rules`)
-- Section: `tab_id` (string), `id` (string), `title` (string), `class` (string), `conditions` (array - aliases: `show_if`, `visibility_rules`)
+- Tab: `id` (string), `label` (string), `priority` (int), `sections` (array), `conditions` (array)
+- Section: `tab_id` (string), `id` (string), `title` (string), `class` (string), `conditions` (array)
 - Field: See Section 14
 
 ### Preset & Bundle Registry
@@ -1131,16 +1129,13 @@ $framework->add_field([
     ],
 ]);
 
-// Show only for partnerships (using legacy WPSF format for demonstration)
+// Show only for partnerships
 $framework->add_section([
     'tab_id'     => 'onboarding',
     'id'         => 'step2_partners',
     'title'      => __('Partner Details', 'my-plugin'),
-    'show_if'    => [
-        [
-            'field' => 'business_type',
-            'value' => ['partnership'] // Legacy arrays are fully supported and safely unpacked!
-        ],
+    'conditions' => [
+        ['field' => 'business_type', 'operator' => 'equals', 'value' => 'partnership'],
     ],
 ]);
 

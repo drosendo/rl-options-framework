@@ -1300,6 +1300,87 @@
 		evaluateTabConditions();
 	}
 
+	function initImportExport() {
+		// Export functionality
+		const exportBtns = document.querySelectorAll('.rl-field-export-btn');
+		exportBtns.forEach(btn => {
+			btn.addEventListener('click', function() {
+				const jsonData = this.getAttribute('data-export-json');
+				if (!jsonData) return;
+				
+				try {
+					const blob = new Blob([jsonData], { type: "application/json" });
+					const url = URL.createObjectURL(blob);
+					const a = document.createElement("a");
+					a.href = url;
+					a.download = rlFramework.optionField + "-export.json";
+					document.body.appendChild(a);
+					a.click();
+					document.body.removeChild(a);
+					URL.revokeObjectURL(url);
+					rlLog('Export downloaded successfully.');
+				} catch (err) {
+					rlError('Failed to generate export file:', err);
+				}
+			});
+		});
+
+		// Import functionality
+		const importFiles = document.querySelectorAll('.rl-field-import-file');
+		importFiles.forEach(fileInput => {
+			fileInput.addEventListener('change', function(e) {
+				const file = e.target.files[0];
+				if (!file) return;
+
+				const wrapper = this.closest('.rl-field-control');
+				const textarea = wrapper.querySelector('.rl-field-import-textarea');
+				const statusMsg = wrapper.querySelector('.rl-field-import-status');
+
+				if (!textarea) return;
+
+				const reader = new FileReader();
+				reader.onload = function(evt) {
+					textarea.value = evt.target.result;
+					if (statusMsg) {
+						statusMsg.style.display = 'block';
+					}
+					rlLog('Import file loaded into textarea, ready for save.');
+				};
+				reader.readAsText(file);
+			});
+		});
+	}
+
+	function initReset() {
+		const resetBtns = document.querySelectorAll('.rl-field-reset-btn');
+		resetBtns.forEach(btn => {
+			btn.addEventListener('click', function(e) {
+				const confirmMsg = this.getAttribute('data-confirm-msg');
+				if (!window.confirm(confirmMsg)) {
+					return;
+				}
+				
+				const wrapper = this.closest('.rl-field-control');
+				if (!wrapper) return;
+				
+				const hiddenInput = wrapper.querySelector('.rl-field-reset-input');
+				if (hiddenInput) {
+					hiddenInput.value = '1';
+					// Automatically submit the form
+					const form = this.closest('form');
+					if (form) {
+						if (typeof jQuery !== 'undefined') {
+							jQuery(form).trigger('submit');
+						} else {
+							form.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
+						}
+					}
+				}
+			});
+		});
+	}
+
+
 	$(document).ready(function () {
 		rlLog('='.repeat(70));
 		rlLog('🚀 RL Options Framework Initializing...');
@@ -1316,6 +1397,8 @@
 		initGeoFieldTypes();
 		initDependencyProviders();
 		initTabConditions();
+		initImportExport();
+		initReset();
 		updateAllSidebarSectionsVisibility();
 		
 		// Open first accordion section in the active panel on page load
@@ -1437,8 +1520,13 @@
 								title: 'Success',
 								text: message,
 								confirmButtonText: 'OK'
-							}, message);
+							}, message).then(function() {
+								if (data.data && data.data.imported) {
+									window.location.reload();
+								}
+							});
 						} else {
+
 							const message = (data.data && data.data.message) || (data.message) || 'Failed to save settings.';
 							const fieldErrors = (data.data && data.data.field_errors) || {};
 							const errorFieldIds = Object.keys(fieldErrors);

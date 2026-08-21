@@ -159,6 +159,9 @@ add_action('my_project_options_framework_boot', function(RL_Options_Framework $f
 | `date` | `string` | `Y-m-d` |
 | `datetime` | `string` | `Y-m-d H:i` |
 | `html` | n/a | Read-only HTML block sanitized with `wp_kses` |
+| `export` | n/a | Download JSON backup button |
+| `import` | n/a | JSON file upload input |
+| `reset` | n/a | Action button with confirmation |
 
 ### 4.1 `country` field
 
@@ -357,6 +360,58 @@ Read-only HTML content block for admin-only help, notices, and structured markup
     'grid' => ['src' => 'https://example.com/grid.png', 'label' => 'Grid'],
     'list' => ['src' => 'https://example.com/list.png', 'label' => 'List'],
 ]
+```
+
+### 4.9 `export` field
+
+#### What it is
+
+Renders a button to download the current framework options as a JSON file.
+
+#### How to use
+
+```php
+'export_settings' => [
+    'id'           => 'export_settings',
+    'type'         => 'export',
+    'button_label' => __('Download Backup', 'my-plugin'),
+    'description'  => __('Export your settings.', 'my-plugin'),
+],
+```
+
+### 4.10 `import` field
+
+#### What it is
+
+Renders a file upload input to import a JSON backup. Automatically intercepts the form submission to apply the settings.
+
+#### How to use
+
+```php
+'import_settings' => [
+    'id'             => 'import_settings',
+    'type'           => 'import',
+    'status_message' => __('File ready to import. Save changes to apply.', 'my-plugin'),
+    'description'    => __('Import your settings backup.', 'my-plugin'),
+],
+```
+
+### 4.11 `reset` field
+
+#### What it is
+
+Renders a reset button that deletes all settings and restores defaults, with a built-in browser confirmation prompt.
+
+#### How to use
+
+```php
+'reset_settings' => [
+    'id'              => 'reset_settings',
+    'type'            => 'reset',
+    'button_label'    => __('Reset to Defaults', 'my-plugin'),
+    'confirm_message' => __('Are you sure?', 'my-plugin'),
+    'description'     => __('This will wipe all data.', 'my-plugin'),
+],
 ```
 
 ---

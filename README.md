@@ -8,7 +8,7 @@ A modern, standalone, **plugin-agnostic** options framework for WordPress plugin
 
 ## ✨ Features
 
-**Field Types (17 built-in)**
+**Field Types (20 built-in)**
 - `text`, `textarea`, `number`, `date`, `datetime`
 - `select`, `multiselect`, `radio`, `checkbox`, `toggle`
 - `color` (WP Color Picker)
@@ -16,6 +16,7 @@ A modern, standalone, **plugin-agnostic** options framework for WordPress plugin
 - `image_select` (visual option picker)
 - `country`, `state`, `city` (cascading geo fields)
 - `html` / `info` (static content blocks)
+- `export`, `import`, `reset` (system action fields)
 - Custom field types via the field registry
 
 **UI & Layout**
@@ -396,6 +397,52 @@ Renders the field's `description` as a styled info block (no input).
     'type'        => 'info',
     'label'       => 'Pro Feature',
     'description' => 'Upgrade to Pro to unlock this feature.',
+]
+```
+
+---
+
+### `export`
+
+Renders a button to download the current options as a JSON file.
+
+```php
+[
+    'id'           => 'export_settings',
+    'type'         => 'export',
+    'button_label' => 'Download Backup',
+    'description'  => 'Export your settings.',
+]
+```
+
+---
+
+### `import`
+
+Renders a file upload input to import a JSON backup. Automatically intercepts the form submission to apply the settings.
+
+```php
+[
+    'id'             => 'import_settings',
+    'type'           => 'import',
+    'status_message' => 'File ready to import. Save changes to apply.',
+    'description'    => 'Import your settings backup.',
+]
+```
+
+---
+
+### `reset`
+
+Renders a reset button that deletes all settings and restores defaults, with a built-in browser confirmation prompt.
+
+```php
+[
+    'id'              => 'reset_settings',
+    'type'            => 'reset',
+    'button_label'    => 'Reset to Defaults',
+    'confirm_message' => 'Are you sure?',
+    'description'     => 'This will wipe all data.',
 ]
 ```
 

@@ -212,6 +212,51 @@ class RL_Options_Admin_Handler {
 		$fields_map = $this->framework->get_fields_index();
 		RL_Logger::debug( 'Total fields registered: ' . count( $fields_map ) );
 
+		// Check for import payload first
+		$import_input_name = $this->framework->get_config( 'form_field_prefix' ) . '_import_json';
+		if ( ! empty( $_POST[ $import_input_name ] ) ) {
+			$import_json = wp_unslash( $_POST[ $import_input_name ] ); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
+			
+			$import_result = $this->framework->get_storage_service()->import_settings( $import_json );
+			
+			if ( is_wp_error( $import_result ) ) {
+				wp_send_json_error(
+					[
+						'message' => $import_result->get_error_message(),
+					]
+				);
+			}
+
+			// Fire generic post-save hooks for host integrations to react to the import
+			$saved = get_option( $this->framework->get_config( 'option_name' ), [] );
+			do_action( $this->framework->get_config( 'option_name' ) . '_settings_saved', $saved ); // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.DynamicHooknameFound
+			do_action( 'rl_options_framework_settings_saved', $saved, $this->framework->get_config(), $this->framework ); // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound
+
+			wp_send_json_success(
+				[
+					'message' => __( 'Settings imported successfully. The page will reload.', 'smart-variations-images-premium' ),
+					'imported' => true,
+				]
+			);
+		}
+
+		// Check for reset payload
+		$reset_input_name = $this->framework->get_config( 'form_field_prefix' ) . '_reset_settings';
+		if ( isset( $_POST[ $reset_input_name ] ) && $_POST[ $reset_input_name ] === '1' ) {
+			$this->framework->reset_to_defaults();
+
+			// Fire generic post-reset hooks for host integrations to react to the reset
+			do_action( $this->framework->get_config( 'option_name' ) . '_settings_reset' ); // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.DynamicHooknameFound
+			do_action( 'rl_options_framework_settings_reset', $this->framework->get_config(), $this->framework ); // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound
+
+			wp_send_json_success(
+				[
+					'message' => __( 'Settings reset successfully. The page will reload.', 'smart-variations-images-premium' ),
+					'imported' => true, // We can reuse the `imported` flag to trigger the page reload in JS
+				]
+			);
+		}
+
 		$input = isset( $_POST[ $this->framework->get_config( 'form_field_prefix' ) ] ) ? wp_unslash( $_POST[ $this->framework->get_config( 'form_field_prefix' ) ] ) : []; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
 		RL_Logger::debug( 'Submitted field count: ' . count( $input ) );
 

@@ -31,5 +31,8 @@ class RL_Field_Bootstrap
 		$registry->register(new RL_Field_State());
 		$registry->register(new RL_Field_City());
 		$registry->register(new RL_Field_Country_State_City());
+		$registry->register(new RL_Field_Export());
+		$registry->register(new RL_Field_Import());
+		$registry->register(new RL_Field_Reset());
 	}
 }

@@ -389,8 +389,12 @@
 				return;
 			}
 
+			const sectionElement = sectionContent.querySelector('.rl-section');
+			const isSectionHidden = sectionElement && sectionElement.classList.contains('is-hidden');
+
 			const fields = Array.from(sectionContent.querySelectorAll('.rl-field'));
-			const hasVisibleFields = fields.some(isFieldVisible);
+			// A section has visible fields ONLY if it's not explicitly hidden itself
+			const hasVisibleFields = !isSectionHidden && fields.some(isFieldVisible);
 
 			sectionContent.style.display = hasVisibleFields ? '' : 'none';
 			link.style.display = hasVisibleFields ? '' : 'none';
@@ -1050,7 +1054,7 @@
 			return;
 		}
 
-		const conditionalFields = Array.from(form.querySelectorAll('.rl-field.has-conditions'));
+		const conditionalFields = Array.from(form.querySelectorAll('.rl-field.has-conditions, .rl-section.has-conditions'));
 		if (!conditionalFields.length) {
 			return;
 		}

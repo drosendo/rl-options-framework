@@ -116,11 +116,14 @@ class RL_Options_Schema_Manager {
 		$tab = wp_parse_args(
 			$tab,
 			[
-				'label'    => ucwords( str_replace( '_', ' ', $slug ) ),
-				'priority' => 10,
-				'sections' => [],
+				'label'      => ucwords( str_replace( '_', ' ', $slug ) ),
+				'priority'   => 10,
+				'conditions' => [],
+				'sections'   => [],
 			]
 		);
+
+		$tab['conditions'] = $this->normalize_conditions( $tab );
 
 		if ( ! empty( $tab['sections'] ) ) {
 			foreach ( $tab['sections'] as $section_id => $section ) {
@@ -148,10 +151,13 @@ class RL_Options_Schema_Manager {
 				'title'       => ucwords( str_replace( '_', ' ', $section_id ) ),
 				'description' => '',
 				'priority'    => 10,
+				'conditions'  => [],
 				'accordion'   => false,
 				'fields'      => [],
 			]
 		);
+
+		$section['conditions'] = $this->normalize_conditions( $section );
 
 		if ( ! empty( $section['fields'] ) ) {
 			foreach ( $section['fields'] as $field_id => $field ) {
@@ -166,6 +172,65 @@ class RL_Options_Schema_Manager {
 		}
 
 		return $section;
+	}
+
+	/**
+	 * Normalize conditions from legacy show_if or visibility_rules.
+	 *
+	 * @param array $item Item containing conditions.
+	 * @return array Normalized conditions array.
+	 */
+	public function normalize_conditions( array $item ): array {
+		$conditions = $item['conditions'] ?? [];
+
+		// Support legacy 'show_if' or 'visibility_rules' aliases, including typo 'show_if '
+		if ( empty( $conditions ) ) {
+			if ( ! empty( $item['show_if'] ) ) {
+				$conditions = $item['show_if'];
+			} elseif ( ! empty( $item['show_if '] ) ) {
+				$conditions = $item['show_if '];
+			} elseif ( ! empty( $item['visibility_rules'] ) ) {
+				$conditions = $item['visibility_rules'];
+			}
+		}
+
+		if ( ! empty( $conditions ) && is_array( $conditions ) ) {
+			// Support single condition array not wrapped in another array
+			if ( isset( $conditions['field'] ) ) {
+				$conditions = [ $conditions ];
+			}
+
+			$conditions = array_values(
+				array_map(
+					static function ( $condition ) {
+						$condition = wp_parse_args(
+							(array) $condition,
+							[
+								'field'    => '',
+								'operator' => 'equals',
+								'value'    => true,
+							]
+						);
+
+						// Handle legacy WPSF format where value might be an array
+						if ( is_array( $condition['value'] ) && $condition['operator'] === 'equals' ) {
+							if ( count( $condition['value'] ) === 1 ) {
+								$condition['value'] = reset( $condition['value'] );
+							} elseif ( count( $condition['value'] ) > 1 ) {
+								$condition['operator'] = 'in';
+							}
+						}
+
+						return $condition;
+					},
+					$conditions
+				)
+			);
+		} else {
+			$conditions = [];
+		}
+
+		return $conditions;
 	}
 
 	/**
@@ -230,26 +295,7 @@ class RL_Options_Schema_Manager {
 			]
 		);
 
-		if ( ! empty( $field['conditions'] ) && is_array( $field['conditions'] ) ) {
-			$field['conditions'] = array_values(
-				array_map(
-					static function ( $condition ) {
-						$condition = wp_parse_args(
-							(array) $condition,
-							[
-								'field'    => '',
-								'operator' => 'equals',
-								'value'    => true,
-							]
-						);
-						return $condition;
-					},
-					$field['conditions']
-				)
-			);
-		} else {
-			$field['conditions'] = [];
-		}
+		$field['conditions'] = $this->normalize_conditions( $field );
 
 		// Normalize nested subfields (if any)
 		if ( ! empty( $field['fields'] ) && is_array( $field['fields'] ) ) {
@@ -284,6 +330,8 @@ class RL_Options_Schema_Manager {
 	public function get_default_tabs(): array {
 		$td = $this->framework->get_config( 'text_domain' );
 		$debug_field = $this->framework->get_config( 'debug_field_id' );
+		$local_assets_field = $this->framework->get_config( 'local_assets_field_id' );
+		$show_local_assets = ! empty( $this->framework->get_config( 'use_local_assets_toggle' ) );
 
 		$debug_fields = [
 			$debug_field => [
@@ -296,6 +344,18 @@ class RL_Options_Schema_Manager {
 				'priority' => 10,
 			],
 		];
+
+		if ( $show_local_assets ) {
+			$debug_fields[ $local_assets_field ] = [
+				'id'       => $local_assets_field,
+				'type'     => 'toggle',
+				'label'    => __( 'Use Local Assets', 'smart-variations-images-premium' ),
+				'text'     => __( 'Load options framework libraries locally (GDPR compliant)', 'smart-variations-images-premium' ),
+				'desc'     => __( 'Controls how the RL Options Framework loads its own UI libraries (SweetAlert2, Tippy.js, jQuery UI theme). When enabled, these are served from your server. When disabled, they are loaded from public CDNs. This setting does not affect any other plugin assets.', 'smart-variations-images-premium' ),
+				'default'  => true,
+				'priority' => 20,
+			];
+		}
 
 		return [
 			'support' => [
@@ -321,15 +381,9 @@ class RL_Options_Schema_Manager {
 	 */
 	public function filter_tabs_by_conditions( array $tabs, array $options ): array {
 		foreach ( $tabs as $slug => &$tab ) {
-			// Check if tab has show_if condition
-			if ( ! empty( $tab['show_if'] ) && is_array( $tab['show_if'] ) ) {
-				$show_if = $tab['show_if'];
-
-				// Support both single condition and array of conditions
-				// Single: ['field' => 'enable_feature', 'value' => true]
-				// Multiple: [['field' => 'enable_feature', 'value' => true], ['field' => 'gallery_type', 'value' => 'static']]
-				$is_multi = isset( $show_if[0] ) && is_array( $show_if[0] );
-				$conditions = $is_multi ? $show_if : [ $show_if ];
+			// Check if tab has conditions
+			if ( ! empty( $tab['conditions'] ) && is_array( $tab['conditions'] ) ) {
+				$conditions = $tab['conditions'];
 
 				// Check all conditions (AND logic - all must be true)
 				$all_conditions_met = true;
@@ -344,10 +398,29 @@ class RL_Options_Schema_Manager {
 						$current_value = ! empty( $current_value );
 					}
 
-					// Check if condition is met
-					if ( $current_value !== $expected_value ) {
-						$all_conditions_met = false;
-						break;
+					if ( is_array( $expected_value ) ) {
+						// If current value is boolean true, check if '1' or true is in expected
+						if ( $current_value === true && ( in_array( '1', $expected_value, true ) || in_array( true, $expected_value, true ) ) ) {
+							// Match
+						} elseif ( $current_value === false && ( in_array( '0', $expected_value, true ) || in_array( '', $expected_value, true ) || in_array( false, $expected_value, true ) ) ) {
+							// Match
+						} elseif ( ! in_array( $current_value, $expected_value, true ) ) {
+							$all_conditions_met = false;
+							break;
+						}
+					} else {
+						// Check if condition is met
+						if ( $current_value !== $expected_value ) {
+							// Check truthy/falsy fallback for toggles
+							if ( $current_value === true && $expected_value === '1' ) {
+								// Match
+							} elseif ( $current_value === false && ( $expected_value === '0' || $expected_value === '' ) ) {
+								// Match
+							} else {
+								$all_conditions_met = false;
+								break;
+							}
+						}
 					}
 				}
 

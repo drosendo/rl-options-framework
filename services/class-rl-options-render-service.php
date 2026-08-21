@@ -195,9 +195,19 @@ class RL_Options_Render_Service
 			$section_classes[] = 'is-accordion';
 		}
 
+		$data_attrs = '';
+		if (!empty($section['conditions']) && is_array($section['conditions'])) {
+			$data_attrs .= sprintf(
+				' data-conditions="%s" data-visibility-rules="%s"',
+				esc_attr(wp_json_encode($section['conditions'])),
+				esc_attr(wp_json_encode($section['conditions']))
+			);
+			$section_classes[] = 'has-conditions';
+		}
+
 		?>
 		<div class="<?php echo esc_attr(implode(' ', $section_classes)); ?>"
-			data-rl-section="<?php echo esc_attr($section_id); ?>">
+			data-rl-section="<?php echo esc_attr($section_id); ?>"<?php echo $data_attrs; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>>
 			<?php if ($is_accordion): ?>
 				<button type="button" class="rl-accordion-toggle" aria-expanded="false">
 					<span><?php echo esc_html($section['title']); ?></span>

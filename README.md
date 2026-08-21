@@ -295,9 +295,9 @@ Multiple conditions (AND logic):
 ]
 ```
 
-### Conditional Tab Visibility
+### Conditional Tab/Section Visibility
 
-Hide entire tabs based on field values:
+Hide entire tabs or sections based on field values:
 
 ```php
 $tabs['advanced'] = [
@@ -308,9 +308,19 @@ $tabs['advanced'] = [
     ],
     'sections' => [...],
 ];
+
+// Or inside a section:
+$framework->add_section([
+    'tab_id'     => 'advanced',
+    'id'         => 'section_advanced_opts',
+    'title'      => __( 'Advanced Options', 'my-plugin' ),
+    'show_if'    => [
+        ['field' => 'advanced_type', 'value' => 'pro'],
+    ],
+]);
 ```
 
-Multiple conditions for tabs:
+Multiple conditions for tabs or sections:
 
 ```php
 'show_if' => [
@@ -318,6 +328,8 @@ Multiple conditions for tabs:
     ['field' => 'mode', 'value' => 'pro'],
 ],
 ```
+
+> **Note on `show_if`**: For backward compatibility with legacy frameworks like WPSF, `show_if` (and `visibility_rules`) is supported as a drop-in alias for `conditions` on fields, tabs, and sections. Furthermore, wrapping expected values in an array (e.g. `'value' => array('1')`) is fully supported and safely evaluated.
 
 ### Field Validation
 

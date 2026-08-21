@@ -725,7 +725,9 @@ Every field accepts these properties:
 | `required` | `bool` | `false` | ❌ | Enforce non-empty on save |
 | `required_if` | `array` | `[]` | ❌ | Conditional required rules (see Section 5) |
 | `depends_on` | `array` | `[]` | ❌ | List of parent field IDs |
-| `visibility_rules` | `array` | `[]` | ❌ | Show/hide logic based on dependencies |
+| `conditions` | `array` | `[]` | ❌ | Visibility rules (JS frontend / Backend filtering) |
+| `visibility_rules` | `array` | `[]` | ❌ | Alias for `conditions` |
+| `show_if` | `array` | `[]` | ❌ | Alias for `conditions` (Legacy WPSF format supported) |
 | `sanitize_callback` | `callable` | `null` | ❌ | Custom sanitize function |
 | `sanitize` | `callable` | `null` | ❌ | Alias for sanitize_callback |
 | `validate_callback` | `callable` | `null` | ❌ | Custom validation function |
@@ -734,7 +736,6 @@ Every field accepts these properties:
 | `input_class` | `string` | `''` | ❌ | CSS classes for input element |
 | `attr` | `array` | `[]` | ❌ | Additional HTML attributes |
 | `tooltip` | `string` | `''` | ❌ | Inline help (shows on hover) |
-| `show_if` | `array` | `[]` | ❌ | Conditional display rules |
 
 ### Type-specific properties
 
@@ -865,8 +866,8 @@ Register tabs, sections, and fields. Can be called anytime before rendering.
 
 **Keys:**
 
-- Tab: `id` (string), `label` (string), `priority` (int), `sections` (array)
-- Section: `tab_id` (string), `id` (string), `title` (string), `class` (string)
+- Tab: `id` (string), `label` (string), `priority` (int), `sections` (array), `conditions` (array - aliases: `show_if`, `visibility_rules`)
+- Section: `tab_id` (string), `id` (string), `title` (string), `class` (string), `conditions` (array - aliases: `show_if`, `visibility_rules`)
 - Field: See Section 14
 
 ### Preset & Bundle Registry
@@ -1130,13 +1131,16 @@ $framework->add_field([
     ],
 ]);
 
-// Show only for partnerships
+// Show only for partnerships (using legacy WPSF format for demonstration)
 $framework->add_section([
     'tab_id'     => 'onboarding',
     'id'         => 'step2_partners',
     'title'      => __('Partner Details', 'my-plugin'),
     'show_if'    => [
-        ['field' => 'business_type', 'operator' => 'equals', 'expected' => 'partnership'],
+        [
+            'field' => 'business_type',
+            'value' => ['partnership'] // Legacy arrays are fully supported and safely unpacked!
+        ],
     ],
 ]);
 

@@ -1029,6 +1029,35 @@
 		}
 	}
 
+	/**
+	 * Normalize a raw conditions value into a group object {relation, rules}.
+	 * Handles:
+	 *   - Already-normalized groups: {relation, rules}
+	 *   - Flat arrays of rules:       [{field, operator, value}, ...]
+	 *   - Single rule objects:         {field, operator, value}
+	 */
+	function normalizeConditions(raw) {
+		if (!raw) return null;
+
+		// Already a group object
+		if (raw.rules && Array.isArray(raw.rules)) {
+			return raw;
+		}
+
+		// Flat array — treat each element as a rule (AND logic)
+		if (Array.isArray(raw)) {
+			if (!raw.length) return null;
+			return { relation: 'AND', rules: raw };
+		}
+
+		// Single rule object
+		if (raw.field) {
+			return { relation: 'AND', rules: [raw] };
+		}
+
+		return null;
+	}
+
 	function evaluateConditionGroup(form, group) {
 		if (!group || !group.rules || !group.rules.length) {
 			return true;
@@ -1062,10 +1091,15 @@
 			return;
 		}
 
-		let conditions;
+		let raw;
 		try {
-			conditions = JSON.parse(fieldWrapper.dataset.conditions);
+			raw = JSON.parse(fieldWrapper.dataset.conditions);
 		} catch (err) {
+			return;
+		}
+
+		const conditions = normalizeConditions(raw);
+		if (!conditions) {
 			return;
 		}
 
@@ -1098,12 +1132,15 @@
 		}
 
 		conditionalFields.forEach((fieldWrapper) => {
-			let conditions;
+			let raw;
 			try {
-				conditions = JSON.parse(fieldWrapper.dataset.conditions);
+				raw = JSON.parse(fieldWrapper.dataset.conditions);
 			} catch (err) {
 				return;
 			}
+
+			const conditions = normalizeConditions(raw);
+			if (!conditions) return;
 
 			const fieldKeys = new Set();
 			extractFieldsFromGroup(conditions, fieldKeys);
@@ -1159,10 +1196,11 @@
 			const conditionsAttr = link.getAttribute('data-tab-conditions');
 			if (conditionsAttr) {
 				try {
-					const parsed = JSON.parse(conditionsAttr);
-					// Normalize to object format if necessary, though backend should pass correct format
-					const isMulti = Array.isArray(parsed);
-					tabConditions[link.dataset.rlTab] = isMulti ? { relation: 'AND', rules: parsed } : parsed;
+					const raw = JSON.parse(conditionsAttr);
+					const normalized = normalizeConditions(raw);
+					if (normalized) {
+						tabConditions[link.dataset.rlTab] = normalized;
+					}
 				} catch (err) {
 					rlError('Failed to parse tab conditions for', link.dataset.rlTab, err);
 				}

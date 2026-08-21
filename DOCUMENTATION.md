@@ -1046,7 +1046,7 @@ The `conditions` array is used to control the frontend and backend visibility of
 
 ---
 
-## 17. Callback Signatures
+## 18. Callback Signatures
 
 ### Custom sanitize callback
 
@@ -1121,7 +1121,7 @@ $framework->register_field_bundle('name_pair', 'my_bundle_resolver');
 
 ---
 
-## 18. Common Patterns & Recipes
+## 19. Common Patterns & Recipes
 
 ### Pattern 1: Multi-step form with conditional sections
 
@@ -1281,7 +1281,7 @@ $framework->add_field([
 
 ---
 
-## 19. Troubleshooting & FAQ
+## 20. Troubleshooting & FAQ
 
 ### Issue: Fields not appearing
 
@@ -1333,7 +1333,7 @@ $framework->add_field([
 
 ---
 
-## 20. Error Messages Reference
+## 21. Error Messages Reference
 
 ### Validation errors
 

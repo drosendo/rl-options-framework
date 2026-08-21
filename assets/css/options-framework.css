@@ -748,8 +748,7 @@
 	}
 }
 
-/* PRO Badges & Legacy Info Notices Styling */
-.wpsfsvi-label {
+.rl-options-label {
 	display: inline-block;
 	padding: 2px 7px;
 	font-size: 10px;
@@ -763,11 +762,11 @@
 	letter-spacing: 0.03em;
 }
 
-.wpsfsvi-label.label-warning {
+.rl-options-label.label-warning {
 	background-color: #d97706;
 }
 
-.notice.wpsfsvi-info {
+.notice.rl-options-info {
 	margin-top: 8px !important;
 	margin-bottom: 16px !important;
 	padding: 12px 16px !important;
@@ -783,7 +782,7 @@
 	box-sizing: border-box;
 }
 
-.notice.wpsfsvi-info p {
+.notice.rl-options-info p {
 	margin: 0;
 	padding: 0;
 }

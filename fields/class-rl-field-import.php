@@ -40,7 +40,7 @@ class RL_Field_Import implements RL_Field_Interface, RL_Field_Processing_Interfa
 		);
 	}
 
-	public function sanitize(array $field, $value)
+	public function sanitize(array $field, $value, array $context = [])
 	{
 		// The import field itself doesn't save a value in the normal settings array.
 		// The actual import is intercepted in the admin handler before generic fields are processed.

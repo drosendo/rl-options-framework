@@ -38,7 +38,7 @@ class RL_Field_Reset implements RL_Field_Interface, RL_Field_Processing_Interfac
 		);
 	}
 
-	public function sanitize(array $field, $value)
+	public function sanitize(array $field, $value, array $context = [])
 	{
 		// Intercepted by admin handler.
 		return null;

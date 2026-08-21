@@ -984,6 +984,79 @@
 		});
 	}
 
+	function evaluateSingleCondition(form, condition) {
+		const fieldValue = getFieldValue(form, condition.field);
+		const compareValue = condition.value;
+		const operator = (condition.operator || 'equals').toLowerCase();
+
+		switch (operator) {
+			case 'equals':
+			case '==':
+				if (fieldValue === true && compareValue === '1') return true;
+				if (fieldValue === false && compareValue === '0') return true;
+				return String(fieldValue) === String(compareValue);
+			case 'not_equals':
+			case '!=':
+				if (fieldValue === true && compareValue === '1') return false;
+				if (fieldValue === false && compareValue === '0') return false;
+				return String(fieldValue) !== String(compareValue);
+			case '>':
+			case 'greater_than':
+				return Number(fieldValue) > Number(compareValue);
+			case '>=':
+			case 'greater_than_or_equal':
+				return Number(fieldValue) >= Number(compareValue);
+			case '<':
+			case 'less_than':
+				return Number(fieldValue) < Number(compareValue);
+			case '<=':
+			case 'less_than_or_equal':
+				return Number(fieldValue) <= Number(compareValue);
+			case 'in':
+				return Array.isArray(compareValue)
+					? compareValue.includes(fieldValue)
+					: fieldValue === compareValue;
+			case 'not_in':
+				return Array.isArray(compareValue)
+					? !compareValue.includes(fieldValue)
+					: fieldValue !== compareValue;
+			case 'truthy':
+				return Boolean(fieldValue);
+			case 'falsy':
+				return !fieldValue;
+			default:
+				return true;
+		}
+	}
+
+	function evaluateConditionGroup(form, group) {
+		if (!group || !group.rules || !group.rules.length) {
+			return true;
+		}
+
+		const relation = group.relation || 'AND';
+
+		for (let i = 0; i < group.rules.length; i++) {
+			const rule = group.rules[i];
+			let result = false;
+
+			if (rule.relation) {
+				result = evaluateConditionGroup(form, rule);
+			} else if (rule.field) {
+				result = evaluateSingleCondition(form, rule);
+			}
+
+			if (relation === 'AND' && !result) {
+				return false;
+			}
+			if (relation === 'OR' && result) {
+				return true;
+			}
+		}
+
+		return relation === 'AND';
+	}
+
 	function evaluateConditions(form, fieldWrapper) {
 		if (!fieldWrapper.dataset.conditions) {
 			return;
@@ -996,55 +1069,7 @@
 			return;
 		}
 
-		if (!Array.isArray(conditions) || !conditions.length) {
-			return;
-		}
-
-		const result = conditions.every((condition) => {
-			const fieldValue = getFieldValue(form, condition.field);
-			const compareValue = condition.value;
-			const operator = (condition.operator || 'equals').toLowerCase();
-
-			switch (operator) {
-				case 'equals':
-				case '==':
-					if (fieldValue === true && compareValue === '1') return true;
-					if (fieldValue === false && compareValue === '0') return true;
-					return String(fieldValue) === String(compareValue);
-				case 'not_equals':
-				case '!=':
-					if (fieldValue === true && compareValue === '1') return false;
-					if (fieldValue === false && compareValue === '0') return false;
-					return String(fieldValue) !== String(compareValue);
-				case '>':
-				case 'greater_than':
-					return Number(fieldValue) > Number(compareValue);
-				case '>=':
-				case 'greater_than_or_equal':
-					return Number(fieldValue) >= Number(compareValue);
-				case '<':
-				case 'less_than':
-					return Number(fieldValue) < Number(compareValue);
-				case '<=':
-				case 'less_than_or_equal':
-					return Number(fieldValue) <= Number(compareValue);
-				case 'in':
-					return Array.isArray(compareValue)
-						? compareValue.includes(fieldValue)
-						: fieldValue === compareValue;
-				case 'not_in':
-					return Array.isArray(compareValue)
-						? !compareValue.includes(fieldValue)
-						: fieldValue !== compareValue;
-				case 'truthy':
-					return Boolean(fieldValue);
-				case 'falsy':
-					return !fieldValue;
-				default:
-					return true;
-			}
-		});
-
+		const result = evaluateConditionGroup(form, conditions);
 		fieldWrapper.classList.toggle('is-hidden', !result);
 	}
 
@@ -1061,6 +1086,17 @@
 
 		const dependenciesMap = new Map();
 
+		function extractFieldsFromGroup(group, set) {
+			if (!group || !group.rules) return;
+			group.rules.forEach((rule) => {
+				if (rule.relation) {
+					extractFieldsFromGroup(rule, set);
+				} else if (rule.field) {
+					set.add(rule.field);
+				}
+			});
+		}
+
 		conditionalFields.forEach((fieldWrapper) => {
 			let conditions;
 			try {
@@ -1069,12 +1105,10 @@
 				return;
 			}
 
-			if (!Array.isArray(conditions)) {
-				return;
-			}
+			const fieldKeys = new Set();
+			extractFieldsFromGroup(conditions, fieldKeys);
 
-			conditions.forEach((condition) => {
-				const key = condition.field;
+			fieldKeys.forEach((key) => {
 				if (!dependenciesMap.has(key)) {
 					dependenciesMap.set(key, []);
 				}
@@ -1126,11 +1160,9 @@
 			if (conditionsAttr) {
 				try {
 					const parsed = JSON.parse(conditionsAttr);
-					// Normalize to array format
-					// Single: {field: 'enable_feature', value: true} -> [{field: 'enable_feature', value: true}]
-					// Multiple: [{...}, {...}] -> [{...}, {...}]
+					// Normalize to object format if necessary, though backend should pass correct format
 					const isMulti = Array.isArray(parsed);
-					tabConditions[link.dataset.rlTab] = isMulti ? parsed : [parsed];
+					tabConditions[link.dataset.rlTab] = isMulti ? { relation: 'AND', rules: parsed } : parsed;
 				} catch (err) {
 					rlError('Failed to parse tab conditions for', link.dataset.rlTab, err);
 				}
@@ -1144,28 +1176,41 @@
 
 		rlLog('Tab conditions initialized:', Object.keys(tabConditions));
 
+		// Extract dependencies for tabs to listen to changes
+		const tabDependenciesMap = new Map();
+		function extractFieldsFromGroup(group, set) {
+			if (!group || !group.rules) return;
+			group.rules.forEach((rule) => {
+				if (rule.relation) {
+					extractFieldsFromGroup(rule, set);
+				} else if (rule.field) {
+					set.add(rule.field);
+				}
+			});
+		}
+
+		Object.values(tabConditions).forEach((conditions) => {
+			const fieldKeys = new Set();
+			extractFieldsFromGroup(conditions, fieldKeys);
+			
+			fieldKeys.forEach((key) => {
+				if (!tabDependenciesMap.has(key)) {
+					tabDependenciesMap.set(key, true);
+				}
+			});
+		});
+
 		function evaluateTabConditions() {
 			tabLinks.forEach((link) => {
 				const tabSlug = link.dataset.rlTab;
 				const conditions = tabConditions[tabSlug];
 				
-				if (!conditions || !Array.isArray(conditions)) {
+				if (!conditions) {
 					return;
 				}
 
-				// Check all conditions (AND logic)
-				const allConditionsMet = conditions.every((condition) => {
-					const fieldKey = condition.field;
-					const expectedValue = condition.value;
-					const currentValue = getFieldValue(form, fieldKey);
-
-					// Handle boolean comparisons
-					if (typeof expectedValue === 'boolean') {
-						return currentValue === expectedValue;
-					}
-
-					return currentValue === expectedValue;
-				});
+				// Check all conditions recursively
+				const allConditionsMet = evaluateConditionGroup(form, conditions);
 
 				// Show/hide tab link
 				if (allConditionsMet) {
@@ -1216,6 +1261,20 @@
 		});
 
 		// Initial evaluation
+		// Attach listeners to tab dependencies
+		tabDependenciesMap.forEach((_, fieldKey) => {
+			const fieldName = framework.optionField + '[' + fieldKey + ']';
+			const inputs = form.querySelectorAll('[name="' + fieldName + '"], [name="' + fieldName + '[]"]');
+
+			inputs.forEach((input) => {
+				input.addEventListener('change', evaluateTabConditions);
+				input.addEventListener('input', evaluateTabConditions);
+				if (input.type === 'checkbox' || input.type === 'radio') {
+					input.addEventListener('click', evaluateTabConditions);
+				}
+			});
+		});
+
 		evaluateTabConditions();
 	}
 

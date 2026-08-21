@@ -279,7 +279,7 @@ Show/hide fields based on other field values:
     'conditions' => [
         [
             'field'    => 'enable_api',     // Field to check
-            'operator' => 'equals',         // Currently only 'equals' supported
+            'operator' => 'equals',         // Supports 'equals', 'not_equals', 'in', '>', '<', 'truthy', etc.
             'value'    => true,             // Value to match
         ],
     ],
@@ -292,6 +292,20 @@ Multiple conditions (AND logic):
 'conditions' => [
     ['field' => 'enable_api', 'operator' => 'equals', 'value' => true],
     ['field' => 'mode', 'operator' => 'equals', 'value' => 'advanced'],
+]
+```
+
+Complex nested conditions (OR / AND logic):
+
+```php
+'conditions' => [
+    'relation' => 'OR',
+    ['field' => 'mode', 'operator' => 'equals', 'value' => 'advanced'],
+    [
+        'relation' => 'AND',
+        ['field' => 'enable_api', 'operator' => 'equals', 'value' => true],
+        ['field' => 'environment', 'operator' => 'equals', 'value' => 'production'],
+    ],
 ]
 ```
 

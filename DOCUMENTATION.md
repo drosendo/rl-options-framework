@@ -1147,11 +1147,34 @@ $framework->add_field([
     'label'        => __('Number of Partners', 'my-plugin'),
     'required_if'  => [
         ['field' => 'business_type', 'operator' => 'equals', 'expected' => 'partnership'],
-    ],
+    ]
 ]);
 ```
 
-### Pattern 2: Geographic location form with cascading selects
+### Pattern 3: Nested Conditions (AND / OR logic)
+
+The `conditions` array supports nested groups with explicit `relation` keys (`AND` or `OR`). This allows you to build complex visibility logic.
+
+```php
+$framework->add_field([
+    'tab_id'     => 'main',
+    'section_id' => 'section_global',
+    'id'         => 'custom_banner',
+    'type'       => 'image',
+    'label'      => __('Custom Banner', 'my-plugin'),
+    'conditions' => [
+        'relation' => 'OR', // Either condition must be true
+        ['field' => 'display_style', 'operator' => 'equals', 'value' => 'custom'],
+        [
+            'relation' => 'AND', // Nested AND group
+            ['field' => 'display_style', 'operator' => 'equals', 'value' => 'automatic'],
+            ['field' => 'override_automatic', 'operator' => 'equals', 'value' => '1'],
+        ]
+    ]
+]);
+```
+
+### Pattern 4: Geographic location form with cascading selects
 
 ```php
 $framework->add_field([

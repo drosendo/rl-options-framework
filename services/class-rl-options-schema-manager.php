@@ -189,28 +189,53 @@ class RL_Options_Schema_Manager {
 				$conditions = [ $conditions ];
 			}
 
-			$conditions = array_values(
-				array_map(
-					static function ( $condition ) {
-						$condition = wp_parse_args(
-							(array) $condition,
-							[
-								'field'    => '',
-								'operator' => 'equals',
-								'value'    => true,
-							]
-						);
-
-						return $condition;
-					},
-					$conditions
-				)
-			);
-		} else {
-			$conditions = [];
+			return $this->normalize_condition_group( $conditions );
 		}
 
-		return $conditions;
+		return [];
+	}
+
+	/**
+	 * Recursively normalize a condition group.
+	 *
+	 * @param array $group The condition group.
+	 * @return array Normalized group.
+	 */
+	private function normalize_condition_group( array $group ): array {
+		$normalized = [
+			'relation' => 'AND',
+			'rules'    => [],
+		];
+
+		if ( isset( $group['relation'] ) ) {
+			$normalized['relation'] = strtoupper( $group['relation'] ) === 'OR' ? 'OR' : 'AND';
+			unset( $group['relation'] );
+		}
+
+		foreach ( $group as $rule ) {
+			if ( ! is_array( $rule ) ) {
+				continue;
+			}
+
+			// If it's a nested group (has relation, or doesn't have 'field' but has numeric keys)
+			if ( isset( $rule['relation'] ) || ( ! isset( $rule['field'] ) && wp_is_numeric_array( $rule ) ) ) {
+				$sub_group = $this->normalize_condition_group( $rule );
+				if ( ! empty( $sub_group['rules'] ) ) {
+					$normalized['rules'][] = $sub_group;
+				}
+			} elseif ( isset( $rule['field'] ) ) {
+				$normalized['rules'][] = wp_parse_args(
+					$rule,
+					[
+						'field'    => '',
+						'operator' => 'equals',
+						'value'    => true,
+					]
+				);
+			}
+		}
+
+		return empty( $normalized['rules'] ) ? [] : $normalized;
 	}
 
 	/**
@@ -361,54 +386,108 @@ class RL_Options_Schema_Manager {
 	 */
 	public function filter_tabs_by_conditions( array $tabs, array $options ): array {
 		foreach ( $tabs as $slug => &$tab ) {
-			// Check if tab has conditions
 			if ( ! empty( $tab['conditions'] ) && is_array( $tab['conditions'] ) ) {
-				$conditions = $tab['conditions'];
-
-				// Check all conditions (AND logic - all must be true)
-				$all_conditions_met = true;
-				foreach ( $conditions as $condition ) {
-					$field_id = $condition['field'] ?? '';
-					$expected_value = $condition['value'] ?? '';
-					$current_value = $options[ $field_id ] ?? '';
-
-					// Normalize boolean comparisons
-					// Toggle/checkbox fields save as "1" or "" (empty string)
-					if ( is_bool( $expected_value ) ) {
-						$current_value = ! empty( $current_value );
-					}
-
-					if ( is_array( $expected_value ) ) {
-						// If current value is boolean true, check if '1' or true is in expected
-						if ( $current_value === true && ( in_array( '1', $expected_value, true ) || in_array( true, $expected_value, true ) ) ) {
-							// Match
-						} elseif ( $current_value === false && ( in_array( '0', $expected_value, true ) || in_array( '', $expected_value, true ) || in_array( false, $expected_value, true ) ) ) {
-							// Match
-						} elseif ( ! in_array( $current_value, $expected_value, true ) ) {
-							$all_conditions_met = false;
-							break;
-						}
-					} else {
-						// Check if condition is met
-						if ( $current_value !== $expected_value ) {
-							// Check truthy/falsy fallback for toggles
-							if ( $current_value === true && $expected_value === '1' ) {
-								// Match
-							} elseif ( $current_value === false && ( $expected_value === '0' || $expected_value === '' ) ) {
-								// Match
-							} else {
-								$all_conditions_met = false;
-								break;
-							}
-						}
-					}
-				}
-
-				// Mark tab as hidden if any condition is not met
-				$tab['_hidden'] = ! $all_conditions_met;
+				$tab['_hidden'] = ! $this->evaluate_condition_group( $tab['conditions'], $options );
 			}
 		}
 
 		return $tabs;
+	}
+
+	/**
+	 * Recursively evaluate a condition group.
+	 *
+	 * @param array $group   The condition group (must have 'relation' and 'rules').
+	 * @param array $options Current option values.
+	 * @return bool Whether the condition group is met.
+	 */
+	private function evaluate_condition_group( array $group, array $options ): bool {
+		$relation = $group['relation'] ?? 'AND';
+		$rules    = $group['rules'] ?? [];
+
+		if ( empty( $rules ) ) {
+			return true;
+		}
+
+		foreach ( $rules as $rule ) {
+			$result = false;
+
+			if ( isset( $rule['relation'] ) ) {
+				// Nested group
+				$result = $this->evaluate_condition_group( $rule, $options );
+			} elseif ( isset( $rule['field'] ) ) {
+				// Leaf condition
+				$field_id       = $rule['field'];
+				$operator       = strtolower( $rule['operator'] ?? 'equals' );
+				$expected_value = $rule['value'] ?? true;
+				$current_value  = $options[ $field_id ] ?? '';
+
+				// Normalize boolean comparisons for toggles
+				if ( is_bool( $expected_value ) ) {
+					$current_value = ! empty( $current_value );
+				}
+				
+				// Handle truthy / falsy fallback for toggles saved as string '1' or '0'
+				if ( $current_value === '1' && is_bool( $expected_value ) ) {
+					$current_value = true;
+				}
+				if ( $current_value === '0' && is_bool( $expected_value ) ) {
+					$current_value = false;
+				}
+				if ( $current_value === '' && is_bool( $expected_value ) ) {
+					$current_value = false;
+				}
+
+				switch ( $operator ) {
+					case 'equals':
+					case '==':
+						$result = $current_value === $expected_value;
+						break;
+					case 'not_equals':
+					case '!=':
+						$result = $current_value !== $expected_value;
+						break;
+					case 'in':
+						$result = is_array( $expected_value ) ? in_array( $current_value, $expected_value, true ) : $current_value === $expected_value;
+						break;
+					case 'not_in':
+						$result = is_array( $expected_value ) ? ! in_array( $current_value, $expected_value, true ) : $current_value !== $expected_value;
+						break;
+					case '>':
+					case 'greater_than':
+						$result = is_numeric( $current_value ) && is_numeric( $expected_value ) && (float) $current_value > (float) $expected_value;
+						break;
+					case '>=':
+					case 'greater_than_or_equal':
+						$result = is_numeric( $current_value ) && is_numeric( $expected_value ) && (float) $current_value >= (float) $expected_value;
+						break;
+					case '<':
+					case 'less_than':
+						$result = is_numeric( $current_value ) && is_numeric( $expected_value ) && (float) $current_value < (float) $expected_value;
+						break;
+					case '<=':
+					case 'less_than_or_equal':
+						$result = is_numeric( $current_value ) && is_numeric( $expected_value ) && (float) $current_value <= (float) $expected_value;
+						break;
+					case 'truthy':
+						$result = (bool) $current_value;
+						break;
+					case 'falsy':
+						$result = ! (bool) $current_value;
+						break;
+					default:
+						$result = true;
+				}
+			}
+
+			if ( $relation === 'AND' && ! $result ) {
+				return false;
+			}
+			if ( $relation === 'OR' && $result ) {
+				return true;
+			}
+		}
+
+		return $relation === 'AND';
 	}
 }

@@ -43,4 +43,14 @@ class RL_Field_Reset implements RL_Field_Interface, RL_Field_Processing_Interfac
 		// Intercepted by admin handler.
 		return null;
 	}
+
+	public function validate(array $field, $value, string &$error, array $context = []): bool
+	{
+		return true;
+	}
+
+	public function prepare_for_validation(array $field, $value, array $context = [])
+	{
+		return $value;
+	}
 }

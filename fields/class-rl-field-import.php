@@ -46,4 +46,14 @@ class RL_Field_Import implements RL_Field_Interface, RL_Field_Processing_Interfa
 		// The actual import is intercepted in the admin handler before generic fields are processed.
 		return null; 
 	}
+
+	public function validate(array $field, $value, string &$error, array $context = []): bool
+	{
+		return true;
+	}
+
+	public function prepare_for_validation(array $field, $value, array $context = [])
+	{
+		return $value;
+	}
 }

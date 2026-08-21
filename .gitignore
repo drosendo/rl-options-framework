@@ -7,3 +7,5 @@ tasks/
 vendor/
 composer.lock
 
+# Private planning / internal docs
+ROADMAP-v3.md

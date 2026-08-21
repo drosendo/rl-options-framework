@@ -62,7 +62,9 @@
 	margin-bottom: 1.5rem;
 }
 
-.rl-options-page .rl-field.is-hidden {
+.rl-options-page .rl-field.is-hidden,
+.rl-options-page .rl-section.is-hidden,
+.rl-options-page .rl-section-content.is-hidden {
 	display: none !important;
 }
 
@@ -605,11 +607,13 @@
 	padding-bottom: 0;
 }
 
-.rl-options-page .rl-field.has-conditions {
+.rl-options-page .rl-field.has-conditions,
+.rl-options-page .rl-section.has-conditions {
 	transition: opacity 0.2s ease-in-out, max-height 0.25s ease-in-out;
 }
 
-.rl-options-page .rl-field.is-hidden {
+.rl-options-page .rl-field.is-hidden,
+.rl-options-page .rl-section.is-hidden {
 	opacity: 0;
 	max-height: 0;
 	overflow: hidden;

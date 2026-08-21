@@ -1,4 +1,5 @@
 <?php
+// phpcs:disable WordPress.NamingConventions.PrefixAllGlobals
 
 if (!defined('ABSPATH')) {
 	return;
@@ -64,13 +65,15 @@ class RL_Field_City implements RL_Field_Interface, RL_Field_Processing_Interface
 
 		$geo_callback = $context['geo_options_callback'] ?? null;
 		if (!is_callable($geo_callback)) {
-			$error = sprintf(__('%s has an invalid geographic value.', $text_domain), $field_label);
+			/* translators: %s: field label */
+			$error = sprintf(__('%s has an invalid geographic value.', 'smart-variations-images-premium'), $field_label);
 			return false;
 		}
 
 		$allowed = array_keys(call_user_func($geo_callback, $field, 'city', $context['validation_context'] ?? []));
 		if (!in_array((string) $value, $allowed, true)) {
-			$error = sprintf(__('%s has an invalid geographic value.', $text_domain), $field_label);
+			/* translators: %s: field label */
+			$error = sprintf(__('%s has an invalid geographic value.', 'smart-variations-images-premium'), $field_label);
 			return false;
 		}
 

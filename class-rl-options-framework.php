@@ -1,4 +1,5 @@
 <?php
+// phpcs:disable WordPress.NamingConventions.PrefixAllGlobals
 /**
  * RL Options Framework – Generic WordPress Options Framework
  *
@@ -71,11 +72,12 @@
  * @version 2.1.0
  */
 
-if (!defined('ABSPATH')) {
-	return;
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
 }
 
 if (!function_exists('rl_options_framework_get_countries')) {
+	// phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedFunctionFound
 	/**
 	 * Get normalized country metadata.
 	 *
@@ -89,6 +91,7 @@ if (!function_exists('rl_options_framework_get_countries')) {
 }
 
 if (!function_exists('rl_options_framework_get_country_subdivisions')) {
+	// phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedFunctionFound
 	/**
 	 * Get country subdivisions as normalized options.
 	 *
@@ -102,6 +105,7 @@ if (!function_exists('rl_options_framework_get_country_subdivisions')) {
 }
 
 if (!function_exists('rl_options_framework_get_country_municipalities')) {
+	// phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedFunctionFound
 	/**
 	 * Get municipalities as normalized options.
 	 *
@@ -117,6 +121,7 @@ if (!function_exists('rl_options_framework_get_country_municipalities')) {
 /**
  * Generic options framework for WordPress plugins.
  */
+// phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedClassFound
 final class RL_Options_Framework
 {
 	/**
@@ -360,7 +365,7 @@ final class RL_Options_Framework
 		 *
 		 * Hook name format: {option_name}_framework_boot
 		 */
-		do_action($this->config['option_name'] . '_framework_boot', $this);
+		do_action($this->config['option_name'] . '_framework_boot', $this); // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.DynamicHooknameFound
 	}
 
 	/**
@@ -586,17 +591,17 @@ final class RL_Options_Framework
 		$message_param = $this->config['form_field_prefix'] . '_message';
 		$error_param = $this->config['form_field_prefix'] . '_error';
 
-		if (isset($_GET[$message_param]) && 'saved' === $_GET[$message_param]) {
+		if (isset($_GET[$message_param]) && 'saved' === $_GET[$message_param]) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 			printf(
 				'<div class="notice notice-success is-dismissible"><p>%s</p></div>',
-				esc_html__('Settings saved.', $this->config['text_domain'])
+				esc_html__('Settings saved.', 'smart-variations-images-premium')
 			);
 		}
 
-		if (isset($_GET[$message_param]) && 'error' === $_GET[$message_param] && !empty($_GET[$error_param])) {
+		if (isset($_GET[$message_param]) && 'error' === $_GET[$message_param] && !empty($_GET[$error_param])) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 			printf(
 				'<div class="notice notice-error is-dismissible"><p>%s</p></div>',
-				esc_html(wp_unslash($_GET[$error_param]))
+				esc_html(wp_unslash($_GET[$error_param])) // phpcs:ignore WordPress.Security.NonceVerification.Recommended, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
 			);
 		}
 	}
@@ -891,7 +896,7 @@ final class RL_Options_Framework
 	public function get_tabs(): array
 	{
 		$filter_name = $this->config['option_name'] . '_framework_tabs';
-		$tabs = apply_filters($filter_name, $this->tabs, $this);
+		$tabs = apply_filters($filter_name, $this->tabs, $this); // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.DynamicHooknameFound
 
 		uasort(
 			$tabs,
@@ -1126,7 +1131,7 @@ final class RL_Options_Framework
 			return '';
 		}
 
-		$tab = isset($_GET['tab']) ? sanitize_key(wp_unslash($_GET['tab'])) : '';
+		$tab = isset($_GET['tab']) ? sanitize_key(wp_unslash($_GET['tab'])) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 
 		if ($tab && isset($tabs[$tab])) {
 			return $tab;
@@ -1156,7 +1161,7 @@ final class RL_Options_Framework
 	 */
 	private function is_options_page(): bool
 	{
-		return isset($_GET['page']) && $this->config['page_slug'] === sanitize_key(wp_unslash($_GET['page']));
+		return isset($_GET['page']) && $this->config['page_slug'] === sanitize_key(wp_unslash($_GET['page'])); // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 	}
 
 

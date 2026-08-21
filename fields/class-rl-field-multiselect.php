@@ -1,4 +1,5 @@
 <?php
+// phpcs:disable WordPress.NamingConventions.PrefixAllGlobals
 
 if (!defined('ABSPATH')) {
 	return;
@@ -22,7 +23,7 @@ class RL_Field_Multiselect implements RL_Field_Interface, RL_Field_Processing_In
 			'<select id="%1$s" name="%2$s[]" multiple size="%3$d">',
 			esc_attr($input_id),
 			esc_attr($field_name),
-			max(3, min(6, count($options)))
+			(int) max(3, min(6, count($options)))
 		);
 		foreach ($options as $option_value => $option_label) {
 			printf(
@@ -59,7 +60,8 @@ class RL_Field_Multiselect implements RL_Field_Interface, RL_Field_Processing_In
 		foreach ($values as $item) {
 			if (!in_array((string) $item, $allowed, true)) {
 				$error = sprintf(
-					__('%s includes an invalid option.', $text_domain),
+					/* translators: %s: field label */
+					__('%s includes an invalid option.', 'smart-variations-images-premium'),
 					$field_label
 				);
 				return false;

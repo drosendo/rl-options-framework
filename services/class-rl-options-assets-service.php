@@ -1,4 +1,5 @@
 <?php
+// phpcs:disable WordPress.NamingConventions.PrefixAllGlobals
 /**
  * RL Options Assets Service
  *
@@ -40,7 +41,7 @@ class RL_Options_Assets_Service {
 			return;
 		}
 
-		$use_local_assets = $this->should_use_local_assets();
+		$use_local_assets = true; // Always use local assets for wp.org guidelines
 
 		wp_enqueue_style('dashicons');
 
@@ -90,7 +91,7 @@ class RL_Options_Assets_Service {
 				font-weight: 600;
 			}
 		";
-		wp_register_style('rl-framework-custom-css', false);
+		wp_register_style('rl-framework-custom-css', false, [], $this->framework->get_config('version'));
 		wp_enqueue_style('rl-framework-custom-css');
 		wp_add_inline_style('rl-framework-custom-css', $custom_css);
 
@@ -106,12 +107,8 @@ class RL_Options_Assets_Service {
 			$config['version']
 		);
 
-		$sweetalert_css_url = $use_local_assets
-			? $assets_url . 'vendor/sweetalert2/sweetalert2.min.css'
-			: 'https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css';
-		$tippy_css_url = $use_local_assets
-			? $assets_url . 'vendor/tippy/tippy.css'
-			: 'https://unpkg.com/tippy.js@6/dist/tippy.css';
+		$sweetalert_css_url = $assets_url . 'vendor/sweetalert2/sweetalert2.min.css';
+		$tippy_css_url = $assets_url . 'vendor/tippy/tippy.css';
 
 		// SweetAlert2 for better notifications
 		wp_enqueue_style(
@@ -128,15 +125,9 @@ class RL_Options_Assets_Service {
 			'6.3.7'
 		);
 
-		$sweetalert_js_url = $use_local_assets
-			? $assets_url . 'vendor/sweetalert2/sweetalert2.all.min.js'
-			: 'https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.all.min.js';
-		$popper_js_url = $use_local_assets
-			? $assets_url . 'vendor/popper/popper.min.js'
-			: 'https://unpkg.com/@popperjs/core@2/dist/umd/popper.min.js';
-		$tippy_js_url = $use_local_assets
-			? $assets_url . 'vendor/tippy/tippy.umd.min.js'
-			: 'https://unpkg.com/tippy.js@6/dist/tippy.umd.min.js';
+		$sweetalert_js_url = $assets_url . 'vendor/sweetalert2/sweetalert2.all.min.js';
+		$popper_js_url = $assets_url . 'vendor/popper/popper.min.js';
+		$tippy_js_url = $assets_url . 'vendor/tippy/tippy.umd.min.js';
 
 		wp_enqueue_script('wp-color-picker');
 		wp_enqueue_script('jquery-ui-datepicker');
@@ -212,11 +203,11 @@ class RL_Options_Assets_Service {
 			return false;
 		}
 
-		if ($hook === 'toplevel_page_' . $page_slug || str_ends_with($hook, '_page_' . $page_slug)) {
+		if ($hook === 'toplevel_page_' . $page_slug || substr($hook, -strlen('_page_' . $page_slug)) === '_page_' . $page_slug) {
 			return true;
 		}
 
-		$page = isset($_GET['page']) ? sanitize_text_field(wp_unslash((string) $_GET['page'])) : '';
+		$page = isset($_GET['page']) ? sanitize_text_field(wp_unslash((string) $_GET['page'])) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 		return $page === $page_slug;
 	}
 

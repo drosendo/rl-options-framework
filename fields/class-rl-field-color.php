@@ -1,4 +1,5 @@
 <?php
+// phpcs:disable WordPress.NamingConventions.PrefixAllGlobals
 
 if (!defined('ABSPATH')) {
 	return;
@@ -66,7 +67,8 @@ class RL_Field_Color implements RL_Field_Interface, RL_Field_Processing_Interfac
 		}
 
 		$error = sprintf(
-			__('%s must be a valid hex color.', $text_domain),
+			/* translators: %s: field label */
+			__('%s must be a valid hex color.', 'smart-variations-images-premium'),
 			$field_label
 		);
 		return false;

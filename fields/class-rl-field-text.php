@@ -1,4 +1,5 @@
 <?php
+// phpcs:disable WordPress.NamingConventions.PrefixAllGlobals
 
 if (!defined('ABSPATH')) {
 	return;
@@ -35,7 +36,8 @@ class RL_Field_Text implements RL_Field_Interface, RL_Field_Processing_Interface
 
 		if (isset($field['maxlength']) && mb_strlen($value) > $field['maxlength']) {
 			$error = sprintf(
-				__('%1$s must be no more than %2$s characters.', $text_domain),
+				/* translators: 1: field label, 2: max length */
+				__('%1$s must be no more than %2$s characters.', 'smart-variations-images-premium'),
 				$field_label,
 				$field['maxlength']
 			);
@@ -44,7 +46,8 @@ class RL_Field_Text implements RL_Field_Interface, RL_Field_Processing_Interface
 
 		if (isset($field['pattern']) && !preg_match($field['pattern'], $value)) {
 			$error = sprintf(
-				__('%s has an invalid format.', $text_domain),
+				/* translators: %s: field label */
+				__('%s has an invalid format.', 'smart-variations-images-premium'),
 				$field_label
 			);
 			return false;

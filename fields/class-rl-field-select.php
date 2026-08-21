@@ -1,4 +1,5 @@
 <?php
+// phpcs:disable WordPress.NamingConventions.PrefixAllGlobals
 
 if (!defined('ABSPATH')) {
 	return;
@@ -50,7 +51,8 @@ class RL_Field_Select implements RL_Field_Interface, RL_Field_Processing_Interfa
 
 		if (!in_array((string) $value, $allowed, true)) {
 			$error = sprintf(
-				__('%s has an invalid option selected.', $text_domain),
+				/* translators: %s: field label */
+				__('%s has an invalid option selected.', 'smart-variations-images-premium'),
 				$field_label
 			);
 			return false;

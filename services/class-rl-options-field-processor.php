@@ -1,4 +1,5 @@
 <?php
+// phpcs:disable WordPress.NamingConventions.PrefixAllGlobals
 /**
  * RL Options Field Processor Service.
  *
@@ -193,7 +194,7 @@ class RL_Options_Field_Processor {
 			if ( false === $result ) {
 				$error = sprintf(
 					/* translators: %s: field title */
-					__( '%s is invalid.', $config['text_domain'] ),
+					__( '%s is invalid.', 'smart-variations-images-premium' ),
 					$field_label
 				);
 				return false;
@@ -205,7 +206,7 @@ class RL_Options_Field_Processor {
 		if ( ! empty( $field['required'] ) && ( $value === null || $value === '' ) ) {
 			$error = sprintf(
 				/* translators: %s: field title */
-				__( '%s is required.', $config['text_domain'] ),
+				__( '%s is required.', 'smart-variations-images-premium' ),
 				$field_label
 			);
 			return false;
@@ -215,7 +216,7 @@ class RL_Options_Field_Processor {
 		if ( ! empty( $field['required_if'] ) && is_array( $field['required_if'] ) && $this->is_required_by_rules( $field['required_if'], $validation_context ) && ( $value === null || $value === '' ) ) {
 			$error = sprintf(
 				/* translators: %s: field title */
-				__( '%s is required for the selected dependency values.', $config['text_domain'] ),
+				__( '%s is required for the selected dependency values.', 'smart-variations-images-premium' ),
 				$field_label
 			);
 			return false;

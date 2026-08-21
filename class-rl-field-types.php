@@ -1,4 +1,5 @@
 <?php
+// phpcs:disable WordPress.NamingConventions.PrefixAllGlobals
 /**
  * RL Field Types – Typed field aliases with built-in validation and sanitization
  *

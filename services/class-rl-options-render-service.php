@@ -1,4 +1,5 @@
 <?php
+// phpcs:disable WordPress.NamingConventions.PrefixAllGlobals
 /**
  * RL Options Framework – Render Service
  *
@@ -64,8 +65,11 @@ class RL_Options_Render_Service
 
 			<?php if (empty($tabs)): ?>
 				<div class="notice notice-warning">
-					<p><?php esc_html_e('No settings tabs have been registered yet.', $this->framework->config['text_domain']); ?></p>
-					<p><?php printf(esc_html__('Use the %s filter to add settings tabs.', $this->framework->config['text_domain']), '<code>' . esc_html($this->framework->config['option_name'] . '_framework_tabs') . '</code>'); ?>
+					<p><?php esc_html_e('No settings tabs have been registered yet.', 'smart-variations-images-premium'); ?></p>
+					<p><?php 
+						/* translators: %s: filter name */
+						printf(esc_html__('Use the %s filter to add settings tabs.', 'smart-variations-images-premium'), '<code>' . esc_html($this->framework->config['option_name'] . '_framework_tabs') . '</code>'); 
+					?></p>
 					</p>
 				</div>
 				<?php return; ?>
@@ -80,7 +84,7 @@ class RL_Options_Render_Service
 						$tab_conditions = !empty($tab['show_if']) ? ' data-tab-conditions=\'' . esc_attr(wp_json_encode($tab['show_if'])) . '\'' : '';
 						?>
 						<a class="nav-tab<?php echo esc_attr($active); ?>" href="<?php echo esc_url($this->framework->get_tab_url($slug)); ?>"
-							data-rl-tab="<?php echo esc_attr($slug); ?>" <?php echo $tab_conditions; ?> 				<?php echo $hidden; ?>>
+							data-rl-tab="<?php echo esc_attr($slug); ?>" <?php echo $tab_conditions; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?> <?php echo $hidden; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>>
 							<?php echo esc_html($tab['label']); ?>
 						</a>
 					<?php endforeach; ?>
@@ -101,7 +105,7 @@ class RL_Options_Render_Service
 						$hidden = !empty($tab['_hidden']) ? ' style="display:none;"' : '';
 						?>
 						<section class="rl-tab-panel<?php echo esc_attr($panel_active); ?>"
-							data-rl-panel="<?php echo esc_attr($slug); ?>" <?php echo $hidden; ?>>
+							data-rl-panel="<?php echo esc_attr($slug); ?>" <?php echo $hidden; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>>
 							<?php
 							if (!empty($tab['description'])) {
 								echo '<p class="rl-tab-description">' . wp_kses_post($tab['description']) . '</p>';
@@ -123,7 +127,7 @@ class RL_Options_Render_Service
 
 				<div class="rl-submit-bar">
 					<button type="submit" class="button button-primary">
-						<?php esc_html_e('Save changes', $this->framework->config['text_domain']); ?>
+						<?php esc_html_e('Save changes', 'smart-variations-images-premium'); ?>
 					</button>
 				</div>
 			</form>
@@ -143,7 +147,7 @@ class RL_Options_Render_Service
 			return;
 		}
 
-		$current_section = isset($_GET['section']) ? sanitize_key(wp_unslash($_GET['section'])) : key($tab['sections']);
+		$current_section = isset($_GET['section']) ? sanitize_key(wp_unslash($_GET['section'])) : key($tab['sections']); // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 
 		?>
 		<div class="rl-sidebar-layout">
@@ -228,7 +232,7 @@ class RL_Options_Render_Service
 	private function render_section_inner(array $section, array $options): void
 	{
 		if (empty($section['fields'])) {
-			echo '<p class="description">' . esc_html__('No settings available for this section yet.', $this->framework->config['text_domain']) . '</p>';
+			echo '<p class="description">' . esc_html__('No settings available for this section yet.', 'smart-variations-images-premium') . '</p>';
 			return;
 		}
 
@@ -320,7 +324,7 @@ class RL_Options_Render_Service
 			'<div class="%1$s" data-field-id="%2$s"%3$s>',
 			esc_attr(implode(' ', $field_classes)),
 			esc_attr((string) $field_id),
-			$data_attrs
+			$data_attrs // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 		);
 
 		if (!empty($field_label)) {

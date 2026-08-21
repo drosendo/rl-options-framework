@@ -1,4 +1,5 @@
 <?php
+// phpcs:disable WordPress.NamingConventions.PrefixAllGlobals
 
 if (!defined('ABSPATH')) {
 	return;
@@ -24,9 +25,9 @@ class RL_Field_Country_State_City implements RL_Field_Interface, RL_Field_Proces
 		$country_val = sanitize_text_field((string) ($group['country'] ?? ($field['default']['country'] ?? '')));
 		$state_val = sanitize_text_field((string) ($group['state'] ?? ($field['default']['state'] ?? '')));
 		$city_val = sanitize_text_field((string) ($group['city'] ?? ($field['default']['city'] ?? '')));
-		$country_label = (string) ($field['country_label'] ?? __('Country', $text_domain));
-		$state_label = (string) ($field['state_label'] ?? __('State', $text_domain));
-		$city_label = (string) ($field['city_label'] ?? __('City', $text_domain));
+		$country_label = (string) ($field['country_label'] ?? __('Country', 'smart-variations-images-premium'));
+		$state_label = (string) ($field['state_label'] ?? __('State', 'smart-variations-images-premium'));
+		$city_label = (string) ($field['city_label'] ?? __('City', 'smart-variations-images-premium'));
 		$countries = call_user_func($geo, $field, 'country', []);
 		$states = call_user_func($geo, array_merge($field, ['country' => $country_val]), 'state', []);
 		$cities = call_user_func($geo, array_merge($field, ['country' => $country_val, 'subdivision' => $state_val]), 'city', []);
@@ -105,19 +106,22 @@ class RL_Field_Country_State_City implements RL_Field_Interface, RL_Field_Proces
 
 		$geo_callback = $context['geo_options_callback'] ?? null;
 		if (!is_callable($geo_callback)) {
-			$error = sprintf(__('%s has an invalid geographic value.', $text_domain), $field_label);
+			/* translators: %s: field label */
+			$error = sprintf(__('%s has an invalid geographic value.', 'smart-variations-images-premium'), $field_label);
 			return false;
 		}
 
 		if ($required && $country === '') {
-			$error = sprintf(__('%s requires a country selection.', $text_domain), $field_label);
+			/* translators: %s: field label */
+			$error = sprintf(__('%s requires a country selection.', 'smart-variations-images-premium'), $field_label);
 			return false;
 		}
 
 		if ($country !== '') {
 			$allowed_countries = array_keys(call_user_func($geo_callback, $field, 'country', $context['validation_context'] ?? []));
 			if (!in_array($country, $allowed_countries, true)) {
-				$error = sprintf(__('%s has an invalid country.', $text_domain), $field_label);
+				/* translators: %s: field label */
+				$error = sprintf(__('%s has an invalid country.', 'smart-variations-images-premium'), $field_label);
 				return false;
 			}
 		}
@@ -125,7 +129,8 @@ class RL_Field_Country_State_City implements RL_Field_Interface, RL_Field_Proces
 		if ($state !== '') {
 			$allowed_states = array_keys(call_user_func($geo_callback, array_merge($field, ['country' => $country]), 'state', $context['validation_context'] ?? []));
 			if (!in_array($state, $allowed_states, true)) {
-				$error = sprintf(__('%s has an invalid state/district.', $text_domain), $field_label);
+				/* translators: %s: field label */
+				$error = sprintf(__('%s has an invalid state/district.', 'smart-variations-images-premium'), $field_label);
 				return false;
 			}
 		}
@@ -133,7 +138,8 @@ class RL_Field_Country_State_City implements RL_Field_Interface, RL_Field_Proces
 		if ($city !== '') {
 			$allowed_cities = array_keys(call_user_func($geo_callback, array_merge($field, ['country' => $country, 'subdivision' => $state]), 'city', $context['validation_context'] ?? []));
 			if (!in_array($city, $allowed_cities, true)) {
-				$error = sprintf(__('%s has an invalid city/municipality.', $text_domain), $field_label);
+				/* translators: %s: field label */
+				$error = sprintf(__('%s has an invalid city/municipality.', 'smart-variations-images-premium'), $field_label);
 				return false;
 			}
 		}

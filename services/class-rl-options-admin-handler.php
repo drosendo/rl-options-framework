@@ -1,4 +1,5 @@
 <?php
+// phpcs:disable WordPress.NamingConventions.PrefixAllGlobals
 /**
  * RL Options Admin Handler Service.
  *
@@ -44,7 +45,7 @@ class RL_Options_Admin_Handler {
 
 		if ( ! current_user_can( $this->framework->get_config( 'capability' ) ) ) {
 			RL_Logger::error( 'User does not have required capability.', [ 'capability' => $this->framework->get_config( 'capability' ) ] );
-			wp_die( esc_html__( 'You are not allowed to manage these settings.', $this->framework->get_config( 'text_domain' ) ) );
+			wp_die( esc_html__( 'You are not allowed to manage these settings.', 'smart-variations-images-premium' ) );
 		}
 
 		$nonce_action = $this->framework->get_config( 'page_slug' ) . '_save_options';
@@ -55,7 +56,7 @@ class RL_Options_Admin_Handler {
 		$fields_map = $this->framework->get_fields_index();
 		RL_Logger::debug( 'Total fields registered: ' . count( $fields_map ) );
 
-		$input = wp_unslash( $_POST[ $this->framework->get_config( 'form_field_prefix' ) ] ?? [] );
+		$input = isset( $_POST[ $this->framework->get_config( 'form_field_prefix' ) ] ) ? wp_unslash( $_POST[ $this->framework->get_config( 'form_field_prefix' ) ] ) : []; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
 		RL_Logger::debug( 'Form field prefix: ' . $this->framework->get_config( 'form_field_prefix' ) );
 
 		if ( ! is_array( $input ) ) {
@@ -146,8 +147,8 @@ class RL_Options_Admin_Handler {
 		RL_Logger::info( 'Total fields saved: ' . count( $saved ) );
 
 		// Fire generic post-save hooks for host integrations.
-		do_action( $this->framework->get_config( 'option_name' ) . '_settings_saved', $saved );
-		do_action( 'rl_options_framework_settings_saved', $saved, $this->framework->get_config(), $this->framework );
+		do_action( $this->framework->get_config( 'option_name' ) . '_settings_saved', $saved ); // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.DynamicHooknameFound
+		do_action( 'rl_options_framework_settings_saved', $saved, $this->framework->get_config(), $this->framework ); // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound
 
 		RL_Logger::debug( '========== SAVE HANDLER END ==========' );
 
@@ -191,7 +192,7 @@ class RL_Options_Admin_Handler {
 		if ( ! $ajax_nonce_valid && ! $form_nonce_valid ) {
 			wp_send_json_error(
 				[
-					'message' => __( 'Security check failed. Please refresh the page and try again.', $this->framework->get_config( 'text_domain' ) ),
+					'message' => __( 'Security check failed. Please refresh the page and try again.', 'smart-variations-images-premium' ),
 				],
 				403
 			);
@@ -201,7 +202,7 @@ class RL_Options_Admin_Handler {
 		if ( ! current_user_can( $this->framework->get_config( 'capability' ) ) ) {
 			wp_send_json_error(
 				[
-					'message' => __( 'You are not allowed to manage these settings.', $this->framework->get_config( 'text_domain' ) ),
+					'message' => __( 'You are not allowed to manage these settings.', 'smart-variations-images-premium' ),
 				]
 			);
 		}
@@ -211,7 +212,7 @@ class RL_Options_Admin_Handler {
 		$fields_map = $this->framework->get_fields_index();
 		RL_Logger::debug( 'Total fields registered: ' . count( $fields_map ) );
 
-		$input = wp_unslash( $_POST[ $this->framework->get_config( 'form_field_prefix' ) ] ?? [] );
+		$input = isset( $_POST[ $this->framework->get_config( 'form_field_prefix' ) ] ) ? wp_unslash( $_POST[ $this->framework->get_config( 'form_field_prefix' ) ] ) : []; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
 		RL_Logger::debug( 'Submitted field count: ' . count( $input ) );
 
 		if ( ! is_array( $input ) ) {
@@ -293,14 +294,14 @@ class RL_Options_Admin_Handler {
 		RL_Logger::info( 'Total fields saved: ' . count( $saved ) );
 
 		// Fire generic post-save hooks for host integrations.
-		do_action( $this->framework->get_config( 'option_name' ) . '_settings_saved', $saved );
-		do_action( 'rl_options_framework_settings_saved', $saved, $this->framework->get_config(), $this->framework );
+		do_action( $this->framework->get_config( 'option_name' ) . '_settings_saved', $saved ); // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.DynamicHooknameFound
+		do_action( 'rl_options_framework_settings_saved', $saved, $this->framework->get_config(), $this->framework ); // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound
 
 		RL_Logger::debug( '========== AJAX SAVE END ==========' );
 
 		wp_send_json_success(
 			[
-				'message' => __( 'Settings saved successfully.', $this->framework->get_config( 'text_domain' ) ),
+				'message' => __( 'Settings saved successfully.', 'smart-variations-images-premium' ),
 				'saved'   => count( $saved ),
 			]
 		);
@@ -316,20 +317,20 @@ class RL_Options_Admin_Handler {
 		$nonce = isset( $_POST['nonce'] ) ? sanitize_text_field( wp_unslash( $_POST['nonce'] ) ) : '';
 		if ( empty( $nonce ) || ! wp_verify_nonce( $nonce, $this->framework->get_config( 'ajax_action' ) . '_nonce' ) ) {
 			wp_send_json_error(
-				[ 'message' => __( 'Security check failed.', $this->framework->get_config( 'text_domain' ) ) ],
+				[ 'message' => __( 'Security check failed.', 'smart-variations-images-premium' ) ],
 				403
 			);
 		}
 
 		if ( ! current_user_can( $this->framework->get_config( 'capability' ) ) ) {
 			wp_send_json_error(
-				[ 'message' => __( 'You are not allowed to perform this action.', $this->framework->get_config( 'text_domain' ) ) ],
+				[ 'message' => __( 'You are not allowed to perform this action.', 'smart-variations-images-premium' ) ],
 				403
 			);
 		}
 
 		$field_id       = isset( $_POST['field_id'] ) ? sanitize_key( wp_unslash( $_POST['field_id'] ) ) : '';
-		$current_state  = wp_unslash( $_POST['current_state'] ?? [] );
+		$current_state  = isset( $_POST['current_state'] ) ? wp_unslash( $_POST['current_state'] ) : []; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
 		if ( ! is_array( $current_state ) ) {
 			$current_state = [];
 		}
@@ -337,7 +338,7 @@ class RL_Options_Admin_Handler {
 		$fields_map = $this->framework->get_fields_index();
 		if ( $field_id === '' || empty( $fields_map[ $field_id ] ) ) {
 			wp_send_json_error(
-				[ 'message' => __( 'Unknown field.', $this->framework->get_config( 'text_domain' ) ) ],
+				[ 'message' => __( 'Unknown field.', 'smart-variations-images-premium' ) ],
 				400
 			);
 		}
@@ -363,20 +364,20 @@ class RL_Options_Admin_Handler {
 		$nonce = isset( $_POST['nonce'] ) ? sanitize_text_field( wp_unslash( $_POST['nonce'] ) ) : '';
 		if ( empty( $nonce ) || ! wp_verify_nonce( $nonce, $this->framework->get_config( 'ajax_action' ) . '_nonce' ) ) {
 			wp_send_json_error(
-				[ 'message' => __( 'Security check failed.', $this->framework->get_config( 'text_domain' ) ) ],
+				[ 'message' => __( 'Security check failed.', 'smart-variations-images-premium' ) ],
 				403
 			);
 		}
 
 		if ( ! current_user_can( $this->framework->get_config( 'capability' ) ) ) {
 			wp_send_json_error(
-				[ 'message' => __( 'You are not allowed to perform this action.', $this->framework->get_config( 'text_domain' ) ) ],
+				[ 'message' => __( 'You are not allowed to perform this action.', 'smart-variations-images-premium' ) ],
 				403
 			);
 		}
 
 		$field_id = isset( $_POST['field_id'] ) ? sanitize_key( wp_unslash( $_POST['field_id'] ) ) : '';
-		$input    = wp_unslash( $_POST[ $this->framework->get_config( 'form_field_prefix' ) ] ?? [] );
+		$input    = isset( $_POST[ $this->framework->get_config( 'form_field_prefix' ) ] ) ? wp_unslash( $_POST[ $this->framework->get_config( 'form_field_prefix' ) ] ) : []; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
 		if ( ! is_array( $input ) ) {
 			$input = [];
 		}
@@ -384,7 +385,7 @@ class RL_Options_Admin_Handler {
 		$fields_map = $this->framework->get_fields_index();
 		if ( $field_id === '' || empty( $fields_map[ $field_id ] ) ) {
 			wp_send_json_error(
-				[ 'message' => __( 'Unknown field.', $this->framework->get_config( 'text_domain' ) ) ],
+				[ 'message' => __( 'Unknown field.', 'smart-variations-images-premium' ) ],
 				400
 			);
 		}

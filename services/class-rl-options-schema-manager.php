@@ -1,4 +1,5 @@
 <?php
+// phpcs:disable WordPress.NamingConventions.PrefixAllGlobals
 /**
  * RL Options Schema Manager Service.
  *
@@ -290,9 +291,9 @@ class RL_Options_Schema_Manager {
 			$debug_field => [
 				'id'       => $debug_field,
 				'type'     => 'toggle',
-				'label'    => __( 'Enable Debug Mode', $td ),
-				'text'     => __( 'Enable debug logging', $td ),
-				'desc'     => __( 'Enable verbose debug logging for troubleshooting. Disable on production sites.', $td ),
+				'label'    => __( 'Enable Debug Mode', 'smart-variations-images-premium' ),
+				'text'     => __( 'Enable debug logging', 'smart-variations-images-premium' ),
+				'desc'     => __( 'Enable verbose debug logging for troubleshooting. Disable on production sites.', 'smart-variations-images-premium' ),
 				'default'  => false,
 				'priority' => 10,
 			],
@@ -302,9 +303,9 @@ class RL_Options_Schema_Manager {
 			$debug_fields[ $local_assets_field ] = [
 				'id'       => $local_assets_field,
 				'type'     => 'toggle',
-				'label'    => __( 'Use Local Assets', $td ),
-				'text'     => __( 'Load options framework libraries locally (GDPR compliant)', $td ),
-				'desc'     => __( 'Controls how the RL Options Framework loads its own UI libraries (SweetAlert2, Tippy.js, jQuery UI theme). When enabled, these are served from your server. When disabled, they are loaded from public CDNs. This setting does not affect any other plugin assets.', $td ),
+				'label'    => __( 'Use Local Assets', 'smart-variations-images-premium' ),
+				'text'     => __( 'Load options framework libraries locally (GDPR compliant)', 'smart-variations-images-premium' ),
+				'desc'     => __( 'Controls how the RL Options Framework loads its own UI libraries (SweetAlert2, Tippy.js, jQuery UI theme). When enabled, these are served from your server. When disabled, they are loaded from public CDNs. This setting does not affect any other plugin assets.', 'smart-variations-images-premium' ),
 				'default'  => true,
 				'priority' => 20,
 			];
@@ -312,12 +313,12 @@ class RL_Options_Schema_Manager {
 
 		return [
 			'support' => [
-				'label'    => __( 'Support', $td ),
+				'label'    => __( 'Support', 'smart-variations-images-premium' ),
 				'priority' => 900,
 				'sections' => [
 					'debug' => [
 						'id'     => 'debug',
-						'title'  => __( 'Debug Settings', $td ),
+						'title'  => __( 'Debug Settings', 'smart-variations-images-premium' ),
 						'fields' => $debug_fields,
 					],
 				],

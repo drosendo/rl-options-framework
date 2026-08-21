@@ -1,4 +1,5 @@
 <?php
+// phpcs:disable WordPress.NamingConventions.PrefixAllGlobals
 /**
  * RL Options Storage Service.
  *
@@ -104,14 +105,14 @@ class RL_Options_Storage_Service {
 		if ( json_last_error() !== JSON_ERROR_NONE ) {
 			return new WP_Error(
 				'invalid_json',
-				__( 'Invalid JSON format.', $config['text_domain'] )
+				__( 'Invalid JSON format.', 'smart-variations-images-premium' )
 			);
 		}
 
 		if ( ! isset( $data['settings'] ) || ! is_array( $data['settings'] ) ) {
 			return new WP_Error(
 				'invalid_format',
-				__( 'Invalid settings format.', $config['text_domain'] )
+				__( 'Invalid settings format.', 'smart-variations-images-premium' )
 			);
 		}
 
@@ -127,7 +128,7 @@ class RL_Options_Storage_Service {
 		if ( empty( $input ) && ! empty( $raw_settings ) ) {
 			return new WP_Error(
 				'invalid_settings_payload',
-				__( 'Imported settings do not contain any recognized framework fields.', $config['text_domain'] )
+				__( 'Imported settings do not contain any recognized framework fields.', 'smart-variations-images-premium' )
 			);
 		}
 
@@ -147,7 +148,8 @@ class RL_Options_Storage_Service {
 				$validation_errors[ $field_id ] = $error !== ''
 					? $error
 					: sprintf(
-						__( 'Invalid value for %s.', $config['text_domain'] ),
+						/* translators: %s: field label */
+						__( 'Invalid value for %s.', 'smart-variations-images-premium' ),
 						$this->framework->get_field_label( $field )
 					);
 				continue;
@@ -182,8 +184,8 @@ class RL_Options_Storage_Service {
 		$fields_map = $this->framework->get_fields_index();
 		$defaults   = [];
 
-		do_action( "rl_options_before_reset_{$option_name}" );
-		do_action( 'rl_options_before_reset', $option_name );
+		do_action( "rl_options_before_reset_{$option_name}" ); // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound
+		do_action( 'rl_options_before_reset', $option_name ); // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound
 
 		$this->create_backup();
 
@@ -196,8 +198,8 @@ class RL_Options_Storage_Service {
 
 		$result = update_option( $option_name, $defaults );
 
-		do_action( "rl_options_after_reset_{$option_name}", $defaults );
-		do_action( 'rl_options_after_reset', $option_name, $defaults );
+		do_action( "rl_options_after_reset_{$option_name}", $defaults ); // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound
+		do_action( 'rl_options_after_reset', $option_name, $defaults ); // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound
 
 		return $result;
 	}

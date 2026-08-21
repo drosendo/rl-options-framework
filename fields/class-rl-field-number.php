@@ -1,4 +1,5 @@
 <?php
+// phpcs:disable WordPress.NamingConventions.PrefixAllGlobals
 
 if (!defined('ABSPATH')) {
 	return;
@@ -31,7 +32,7 @@ class RL_Field_Number implements RL_Field_Interface, RL_Field_Processing_Interfa
 			esc_attr($input_id),
 			esc_attr($field_name),
 			esc_attr((string) (is_numeric($value) ? $value : ($field['default'] ?? ''))),
-			$attrs
+			$attrs // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 		);
 	}
 
@@ -50,7 +51,8 @@ class RL_Field_Number implements RL_Field_Interface, RL_Field_Processing_Interfa
 
 		if (!is_numeric($value)) {
 			$error = sprintf(
-				__('%s must be a valid number.', $text_domain),
+				/* translators: %s: field label */
+				__('%s must be a valid number.', 'smart-variations-images-premium'),
 				$field_label
 			);
 			return false;
@@ -58,7 +60,8 @@ class RL_Field_Number implements RL_Field_Interface, RL_Field_Processing_Interfa
 
 		if (isset($field['min']) && $value < $field['min']) {
 			$error = sprintf(
-				__('%1$s must be at least %2$s.', $text_domain),
+				/* translators: 1: field label, 2: min value */
+				__('%1$s must be at least %2$s.', 'smart-variations-images-premium'),
 				$field_label,
 				$field['min']
 			);
@@ -67,7 +70,8 @@ class RL_Field_Number implements RL_Field_Interface, RL_Field_Processing_Interfa
 
 		if (isset($field['max']) && $value > $field['max']) {
 			$error = sprintf(
-				__('%1$s must be no more than %2$s.', $text_domain),
+				/* translators: 1: field label, 2: max value */
+				__('%1$s must be no more than %2$s.', 'smart-variations-images-premium'),
 				$field_label,
 				$field['max']
 			);

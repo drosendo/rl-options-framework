@@ -284,8 +284,6 @@ class RL_Options_Schema_Manager {
 	public function get_default_tabs(): array {
 		$td = $this->framework->get_config( 'text_domain' );
 		$debug_field = $this->framework->get_config( 'debug_field_id' );
-		$local_assets_field = $this->framework->get_config( 'local_assets_field_id' );
-		$show_local_assets = ! empty( $this->framework->get_config( 'use_local_assets_toggle' ) );
 
 		$debug_fields = [
 			$debug_field => [
@@ -298,18 +296,6 @@ class RL_Options_Schema_Manager {
 				'priority' => 10,
 			],
 		];
-
-		if ( $show_local_assets ) {
-			$debug_fields[ $local_assets_field ] = [
-				'id'       => $local_assets_field,
-				'type'     => 'toggle',
-				'label'    => __( 'Use Local Assets', 'smart-variations-images-premium' ),
-				'text'     => __( 'Load options framework libraries locally (GDPR compliant)', 'smart-variations-images-premium' ),
-				'desc'     => __( 'Controls how the RL Options Framework loads its own UI libraries (SweetAlert2, Tippy.js, jQuery UI theme). When enabled, these are served from your server. When disabled, they are loaded from public CDNs. This setting does not affect any other plugin assets.', 'smart-variations-images-premium' ),
-				'default'  => true,
-				'priority' => 20,
-			];
-		}
 
 		return [
 			'support' => [

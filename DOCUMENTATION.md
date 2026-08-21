@@ -990,7 +990,28 @@ Register WordPress menu/submenu manually if `register_menu` is `false`.
 
 ---
 
-## 16. Validation Rules & Required-If Syntax
+## 16. Visibility Rules (`conditions`)
+
+The `conditions` array is used to control the frontend and backend visibility of fields, sections, and tabs based on the values of other fields. It evaluates dynamically in JS when the user interacts with the form, and statically in PHP when saving.
+
+### Visibility Operators
+
+| Operator | Type | Example | Meaning |
+|----------|------|---------|---------|
+| `equals` / `==` | `mixed` | `['field' => 'type', 'operator' => 'equals', 'value' => 'image']` | Value is exactly equal to expected |
+| `not_equals` / `!=` | `mixed` | `['field' => 'type', 'operator' => 'not_equals', 'value' => 'image']` | Value is not equal to expected |
+| `in` | `array` | `['field' => 'role', 'operator' => 'in', 'value' => ['admin', 'editor']]` | Value is in array |
+| `not_in` | `array` | `['field' => 'role', 'operator' => 'not_in', 'value' => ['guest']]` | Value is not in array |
+| `>` / `greater_than` | `int\|float` | `['field' => 'age', 'operator' => '>', 'value' => 18]` | Value is strictly greater than |
+| `>=` | `int\|float` | `['field' => 'age', 'operator' => '>=', 'value' => 18]` | Value is greater than or equal to |
+| `<` / `less_than` | `int\|float` | `['field' => 'age', 'operator' => '<', 'value' => 18]` | Value is strictly less than |
+| `<=` | `int\|float` | `['field' => 'age', 'operator' => '<=', 'value' => 18]` | Value is less than or equal to |
+| `truthy` | `bool` | `['field' => 'enable', 'operator' => 'truthy']` | Value evaluates to true/not empty |
+| `falsy` | `bool` | `['field' => 'enable', 'operator' => 'falsy']` | Value evaluates to false/empty |
+
+> **Note**: For boolean toggles, saving often results in a string `"1"` or `"0"`. The `equals` operator is designed to smartly match `true` with `"1"` and `false` with `"0"` or `""`.
+
+## 17. Validation Rules & Required-If Syntax
 
 ### Dependency operators
 

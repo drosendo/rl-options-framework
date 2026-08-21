@@ -43,7 +43,7 @@ class RL_Options_Render_Service
 	{
 		$tabs = $this->framework->get_tabs();
 
-		// Filter tabs based on show_if conditions
+		// Filter tabs based on conditions
 		$options = get_option($this->framework->config['option_name'], []);
 		if (!is_array($options)) {
 			$options = [];
@@ -81,7 +81,8 @@ class RL_Options_Render_Service
 						<?php
 						$active = $slug === $current_tab ? ' nav-tab-active' : '';
 						$hidden = !empty($tab['_hidden']) ? ' style="display:none;"' : '';
-						$tab_conditions = !empty($tab['show_if']) ? ' data-tab-conditions=\'' . esc_attr(wp_json_encode($tab['show_if'])) . '\'' : '';
+						$tab_visibility = $tab['conditions'] ?? [];
+						$tab_conditions = !empty($tab_visibility) ? ' data-tab-conditions=\'' . esc_attr(wp_json_encode($tab_visibility)) . '\'' : '';
 						?>
 						<a class="nav-tab<?php echo esc_attr($active); ?>" href="<?php echo esc_url($this->framework->get_tab_url($slug)); ?>"
 							data-rl-tab="<?php echo esc_attr($slug); ?>" <?php echo $tab_conditions; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?> <?php echo $hidden; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>>

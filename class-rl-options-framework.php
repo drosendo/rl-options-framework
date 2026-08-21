@@ -1178,7 +1178,7 @@ final class RL_Options_Framework
 	}
 
 	/**
-	 * Filter tabs based on show_if conditions.
+	 * Filter tabs based on conditions.
 	 *
 	 * Delegates to schema manager.
 	 *

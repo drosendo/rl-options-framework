@@ -175,7 +175,7 @@ class RL_Options_Schema_Manager {
 	}
 
 	/**
-	 * Normalize conditions from legacy show_if or visibility_rules.
+	 * Normalize conditions format.
 	 *
 	 * @param array $item Item containing conditions.
 	 * @return array Normalized conditions array.
@@ -353,9 +353,9 @@ class RL_Options_Schema_Manager {
 	}
 
 	/**
-	 * Filter tabs based on show_if conditions.
+	 * Filter tabs based on conditions.
 	 *
-	 * @param array $tabs    Tabs array.
+	 * @param array $tabs    Tabs to filter.
 	 * @param array $options Current options values.
 	 * @return array Tabs with visibility flags.
 	 */

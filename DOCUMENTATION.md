@@ -980,7 +980,7 @@ Normalize to `[{value, label}]` format. Used internally; available for custom re
 public function filter_tabs_by_conditions(array $tabs, array $options): array
 ```
 
-Apply visibility rules. Filters tabs based on `show_if` / `visibility_rules`.
+Apply visibility rules. Filters tabs based on `conditions`.
 
 ```php
 public function register_menu(): void

@@ -1243,25 +1243,9 @@
 			updateAllSidebarSectionsVisibility();
 		}
 
-		// Listen to changes on condition fields
-		Object.values(tabConditions).forEach((conditions) => {
-			conditions.forEach((condition) => {
-				const fieldKey = condition.field;
-				const fieldName = framework.optionField + '[' + fieldKey + ']';
-				const inputs = form.querySelectorAll('[name="' + fieldName + '"], [name="' + fieldName + '[]"]');
 
-				inputs.forEach((input) => {
-					input.addEventListener('change', evaluateTabConditions);
-					input.addEventListener('input', evaluateTabConditions);
-					if (input.type === 'checkbox' || input.type === 'radio') {
-						input.addEventListener('click', evaluateTabConditions);
-					}
-				});
-			});
-		});
-
-		// Initial evaluation
 		// Attach listeners to tab dependencies
+
 		tabDependenciesMap.forEach((_, fieldKey) => {
 			const fieldName = framework.optionField + '[' + fieldKey + ']';
 			const inputs = form.querySelectorAll('[name="' + fieldName + '"], [name="' + fieldName + '[]"]');

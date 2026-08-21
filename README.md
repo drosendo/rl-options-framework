@@ -1,351 +1,455 @@
 # RL Options Framework
 
-A robust, flexible, **plugin-agnostic** options framework for WordPress plugins with extensive features and no dependencies on any specific plugin.
+**by [David Rosendo](https://github.com/drosendo) · a [RosendoLabs](https://rosendolabs.com) product**
 
-## Features
+A modern, standalone, **plugin-agnostic** options framework for WordPress plugins and themes. Built for developers who want a clean, powerful settings UI without bloat or dependencies on any specific plugin.
 
-✨ **Comprehensive Field Types**
-- Text, Textarea, Number, DateTime
-- Select, Multiselect, Radio, Checkbox, Toggle
-- Color picker (WP Color Picker)
-- HTML/Info fields
-- Custom field types via filters
+---
 
-🎨 **Modern UI Components**
+## ✨ Features
+
+**Field Types (17 built-in)**
+- `text`, `textarea`, `number`, `date`, `datetime`
+- `select`, `multiselect`, `radio`, `checkbox`, `toggle`
+- `color` (WP Color Picker)
+- `image` (WP Media Library)
+- `image_select` (visual option picker)
+- `country`, `state`, `city` (cascading geo fields)
+- `html` / `info` (static content blocks)
+- Custom field types via the field registry
+
+**UI & Layout**
 - Tabbed interface with icon support
-- Accordion sections
-- Sidebar navigation for complex tabs
-- Responsive design
-- Dashicons integration
-- SweetAlert2 notifications
+- Collapsible accordion sections
+- Sidebar navigation layout for complex pages
+- Responsive design · Dashicons integration
 
-🔄 **Advanced Functionality**
-- Conditional field display (show/hide based on other fields)
-- Conditional tab visibility
-- Field validation with custom validators
+**Advanced Logic**
+- Nested `AND` / `OR` visibility conditions on fields, sections, and tabs
+- Field validation (built-in + custom callbacks)
 - Field sanitization per type
-- Schema-aware import sanitization and validation
-- Priority-based sorting (tabs, sections, fields)
-- Backup and restore functionality
-- Import/export settings as JSON
-- AJAX save with visual feedback
-- Tab persistence with localStorage
+- AJAX save with SweetAlert2 notifications
+- Import / Export settings as JSON (schema-validated)
+- Backup & Restore
+- Tab state persistence via `localStorage`
 
-🔧 **Developer-Friendly**
-- Extensive filter hooks for extensibility
-- Clean, documented code
-- Type-safe PHP (typed properties, return types)
-- No hardcoded plugin-specific values
-- Fully configurable via constructor
+**Developer-Friendly**
+- Zero plugin-specific coupling
+- Type-safe PHP (typed properties & return types)
+- Filter hooks for full extensibility
+- `composer.json` included — installable via Composer
 
-## Installation
+---
 
-1. Copy the `rloptionsFramework` folder to your plugin's library/includes directory
-2. Require the main file in your plugin
-3. Instantiate with your configuration
+## 📦 Installation
+
+### Option A – Copy & Require
 
 ```php
+// In your plugin's main file:
 require_once plugin_dir_path( __FILE__ ) . 'includes/library/rloptionsFramework/main.php';
 ```
 
-## Basic Usage
+### Option B – Composer
 
-### Initialize Framework
-
-```php
-$config = [
-    'option_name'       => 'my_plugin_settings',       // Database option name
-    'form_field_prefix' => 'my_plugin',                // Form field name prefix
-    'page_slug'         => 'my-plugin-settings',       // Admin menu page slug
-    'menu_title'        => 'My Plugin',                // Menu title
-    'page_title'        => 'My Plugin Settings',       // Page <h1> title
-    'capability'        => 'manage_options',           // Required capability
-    'parent_menu'       => 'options-general.php',      // Parent menu (or 'woocommerce', etc.)
-    'text_domain'       => 'my-plugin',                // i18n text domain
-    'ajax_action'       => 'my_plugin_save_ajax',      // AJAX action name
-    'version'           => '1.0.0',                    // Your plugin version
-];
-
-$framework = new RL_Options_Framework( $config );
-$framework->init();
+```bash
+composer require rosendolabs/rl-options-framework
 ```
 
-### Register Settings via Filter Hook
+---
 
-The recommended approach is to use the filter hook pattern:
+## 🚀 Quick Start
 
 ```php
-add_filter( 'my_plugin_settings_framework_tabs', 'my_plugin_register_settings', 10, 2 );
+add_action( 'plugins_loaded', function () {
 
-function my_plugin_register_settings( array $tabs, RL_Options_Framework $framework ): array {
-    $tabs['general'] = [
-        'label'    => __( 'General', 'my-plugin' ),
-        'priority' => 10,
-        'sections' => [
-            'basic' => [
-                'id'          => 'basic',
-                'title'       => __( 'Basic Settings', 'my-plugin' ),
-                'description' => __( 'Configure basic options', 'my-plugin' ),
-                'accordion'   => true,  // Make it collapsible
-                'priority'    => 10,
-                'fields'      => [
-                    'enabled' => [
-                        'id'          => 'enabled',
-                        'type'        => 'toggle',
-                        'label'       => __( 'Enable Feature', 'my-plugin' ),
-                        'description' => __( 'Turn this feature on or off', 'my-plugin' ),
-                        'default'     => true,
-                        'priority'    => 10,
-                    ],
-                    'mode' => [
-                        'id'          => 'mode',
-                        'type'        => 'select',
-                        'label'       => __( 'Display Mode', 'my-plugin' ),
-                        'description' => __( 'Choose how to display content', 'my-plugin' ),
-                        'default'     => 'grid',
-                        'options'     => [
-                            'grid' => __( 'Grid View', 'my-plugin' ),
-                            'list' => __( 'List View', 'my-plugin' ),
-                        ],
-                        'priority'    => 20,
-                        'conditions'  => [  // Show only when enabled=true
-                            [
-                                'field'    => 'enabled',
-                                'operator' => 'equals',
-                                'value'    => true,
-                            ],
-                        ],
-                    ],
-                ],
-            ],
+    $framework = new RL_Options_Framework([
+        'option_name'       => 'my_plugin_settings',
+        'form_field_prefix' => 'my_plugin',
+        'page_slug'         => 'my-plugin-settings',
+        'menu_title'        => 'My Plugin',
+        'page_title'        => 'My Plugin Settings',
+        'capability'        => 'manage_options',
+    ]);
+
+    $framework->init();
+
+    // Tab
+    $framework->add_tab([
+        'id'    => 'general',
+        'label' => 'General',
+    ]);
+
+    // Section
+    $framework->add_section([
+        'tab_id' => 'general',
+        'id'     => 'api',
+        'title'  => 'API Settings',
+    ]);
+
+    // Fields
+    $framework->add_field([
+        'tab_id'     => 'general',
+        'section_id' => 'api',
+        'id'         => 'enable_api',
+        'type'       => 'toggle',
+        'label'      => 'Enable API',
+        'default'    => false,
+    ]);
+
+    $framework->add_field([
+        'tab_id'     => 'general',
+        'section_id' => 'api',
+        'id'         => 'api_key',
+        'type'       => 'text',
+        'label'      => 'API Key',
+        'conditions' => [
+            ['field' => 'enable_api', 'operator' => 'truthy'],
         ],
-    ];
-
-    return $tabs;
-}
+    ]);
+});
 ```
 
-### Retrieve Settings
+### Retrieve a saved value
 
 ```php
-// Get entire options array
-$options = get_option( 'my_plugin_settings', [] );
-
-// Or use framework method
-$framework = new RL_Options_Framework( $config );
-$value = $framework->get_option( 'enabled', false );
+$value = get_option('my_plugin_settings')['api_key'] ?? '';
+// or
+$value = $framework->get_option('api_key', '');
 ```
 
-## Field Types
+---
 
-### Text Field
+## 🧩 Field Types Reference
+
+### `text`
+
 ```php
 [
     'id'          => 'api_key',
     'type'        => 'text',
-    'label'       => __( 'API Key', 'my-plugin' ),
-    'description' => __( 'Enter your API key', 'my-plugin' ),
+    'label'       => 'API Key',
+    'description' => 'Your secret API key.',
+    'placeholder' => 'sk-...',
     'default'     => '',
-    'placeholder' => 'abc123...',
 ]
 ```
 
-### Number Field
+---
+
+### `number`
+
 ```php
 [
-    'id'          => 'items_per_page',
-    'type'        => 'number',
-    'label'       => __( 'Items Per Page', 'my-plugin' ),
-    'description' => __( 'Number of items to display', 'my-plugin' ),
-    'default'     => 10,
-    'min'         => 1,
-    'max'         => 100,
-    'step'        => 1,
-    'required'    => true,
+    'id'      => 'items_per_page',
+    'type'    => 'number',
+    'label'   => 'Items Per Page',
+    'default' => 10,
+    'min'     => 1,
+    'max'     => 100,
+    'step'    => 1,
 ]
 ```
 
-### DateTime Field
+---
+
+### `textarea`
+
 ```php
 [
-    'id'          => 'launch_at',
-    'type'        => 'datetime',
-    'label'       => __( 'Launch Date & Time', 'my-plugin' ),
-    'description' => __( 'Pick a date from the calendar and set the time.', 'my-plugin' ),
-    'default'     => '2026-03-25 09:30', // Y-m-d H:i
-    'required'    => false,
+    'id'      => 'custom_css',
+    'type'    => 'textarea',
+    'label'   => 'Custom CSS',
+    'default' => '',
+    'rows'    => 10,
 ]
 ```
 
-### Select Field
+---
+
+### `toggle`
+
 ```php
 [
-    'id'          => 'layout',
-    'type'        => 'select',
-    'label'       => __( 'Layout', 'my-plugin' ),
-    'description' => __( 'Choose a layout', 'my-plugin' ),
-    'default'     => 'default',
-    'options'     => [
-        'default' => __( 'Default', 'my-plugin' ),
-        'compact' => __( 'Compact', 'my-plugin' ),
-        'wide'    => __( 'Wide', 'my-plugin' ),
+    'id'      => 'enable_feature',
+    'type'    => 'toggle',
+    'label'   => 'Enable Feature',
+    'default' => true,
+]
+```
+
+---
+
+### `checkbox`
+
+```php
+[
+    'id'      => 'agree_terms',
+    'type'    => 'checkbox',
+    'label'   => 'Terms',
+    'text'    => 'I agree to the terms and conditions.',
+    'default' => false,
+]
+```
+
+---
+
+### `radio`
+
+```php
+[
+    'id'      => 'layout',
+    'type'    => 'radio',
+    'label'   => 'Layout Style',
+    'default' => 'grid',
+    'options' => [
+        'grid' => 'Grid',
+        'list' => 'List',
     ],
 ]
 ```
 
-### Toggle Field
-```php
-[
-    'id'          => 'enable_feature',
-    'type'        => 'toggle',
-    'label'       => __( 'Enable Feature', 'my-plugin' ),
-    'description' => __( 'Toggle to enable/disable', 'my-plugin' ),
-    'default'     => true,
-]
-```
+---
 
-### Color Field
-```php
-[
-    'id'          => 'primary_color',
-    'type'        => 'color',
-    'label'       => __( 'Primary Color', 'my-plugin' ),
-    'description' => __( 'Choose a color', 'my-plugin' ),
-    'default'     => '#0073aa',
-]
-```
+### `select`
 
-### Textarea Field
 ```php
 [
-    'id'          => 'custom_css',
-    'type'        => 'textarea',
-    'label'       => __( 'Custom CSS', 'my-plugin' ),
-    'description' => __( 'Add custom styles', 'my-plugin' ),
-    'default'     => '',
-    'rows'        => 10,
-]
-```
-
-### Checkbox Field
-```php
-[
-    'id'          => 'agree_terms',
-    'type'        => 'checkbox',
-    'label'       => __( 'Terms', 'my-plugin' ),
-    'text'        => __( 'I agree to the terms', 'my-plugin' ),
-    'default'     => false,
-]
-```
-
-### Radio Field
-```php
-[
-    'id'          => 'size',
-    'type'        => 'radio',
-    'label'       => __( 'Size', 'my-plugin' ),
-    'description' => __( 'Select a size', 'my-plugin' ),
-    'default'     => 'medium',
-    'options'     => [
-        'small'  => __( 'Small', 'my-plugin' ),
-        'medium' => __( 'Medium', 'my-plugin' ),
-        'large'  => __( 'Large', 'my-plugin' ),
+    'id'      => 'environment',
+    'type'    => 'select',
+    'label'   => 'Environment',
+    'default' => 'production',
+    'options' => [
+        'production'  => 'Production',
+        'staging'     => 'Staging',
+        'development' => 'Development',
     ],
 ]
 ```
 
-### HTML/Info Field
+---
+
+### `multiselect`
+
 ```php
 [
-    'id'   => 'help_text',
+    'id'      => 'roles_allowed',
+    'type'    => 'multiselect',
+    'label'   => 'Allowed Roles',
+    'default' => ['editor'],
+    'options' => [
+        'administrator' => 'Administrator',
+        'editor'        => 'Editor',
+        'author'        => 'Author',
+        'subscriber'    => 'Subscriber',
+    ],
+]
+```
+
+---
+
+### `color`
+
+```php
+[
+    'id'      => 'primary_color',
+    'type'    => 'color',
+    'label'   => 'Primary Color',
+    'default' => '#0073aa',
+]
+```
+
+---
+
+### `image`
+
+Opens the WordPress Media Library picker. Saves the attachment URL.
+
+```php
+[
+    'id'    => 'logo',
+    'type'  => 'image',
+    'label' => 'Site Logo',
+]
+```
+
+---
+
+### `image_select`
+
+A visual radio-style picker using image thumbnails.
+
+```php
+[
+    'id'      => 'theme_style',
+    'type'    => 'image_select',
+    'label'   => 'Theme Style',
+    'default' => 'light',
+    'options' => [
+        'light' => 'Light',
+        'dark'  => 'Dark',
+    ],
+]
+```
+
+---
+
+### `date`
+
+Renders a date picker (WP jQuery UI Datepicker). Saves as `Y-m-d`.
+
+```php
+[
+    'id'      => 'start_date',
+    'type'    => 'date',
+    'label'   => 'Start Date',
+    'default' => '',
+]
+```
+
+---
+
+### `datetime`
+
+Date + time picker. Saves as `Y-m-d H:i`.
+
+```php
+[
+    'id'      => 'launch_at',
+    'type'    => 'datetime',
+    'label'   => 'Launch Date & Time',
+    'default' => '2026-01-01 09:00',
+]
+```
+
+---
+
+### `country`
+
+Renders a country dropdown populated via a `geo_options_callback`. Cascades with `state` and `city`.
+
+```php
+[
+    'id'          => 'billing_country',
+    'type'        => 'country',
+    'label'       => 'Country',
+    'placeholder' => '— Select Country —',
+]
+```
+
+---
+
+### `state`
+
+Cascades from a `country` field. Requires `country_field`.
+
+```php
+[
+    'id'            => 'billing_state',
+    'type'          => 'state',
+    'label'         => 'State / Province',
+    'country_field' => 'billing_country',
+    'depends_on'    => ['billing_country'],
+]
+```
+
+---
+
+### `city`
+
+Cascades from `country` + `state`. Requires `country_field` and `subdivision_field`.
+
+```php
+[
+    'id'               => 'billing_city',
+    'type'             => 'city',
+    'label'            => 'City',
+    'country_field'    => 'billing_country',
+    'subdivision_field'=> 'billing_state',
+    'depends_on'       => ['billing_country', 'billing_state'],
+]
+```
+
+---
+
+### `html`
+
+Renders arbitrary HTML. Sanitized with `wp_kses_post()`.
+
+```php
+[
+    'id'   => 'help_box',
     'type' => 'html',
-    'html' => '<div class="notice notice-info"><p>' . __( 'This is an info box.', 'my-plugin' ) . '</p></div>',
+    'html' => '<div class="notice notice-info"><p>This is a help notice.</p></div>',
 ]
 ```
 
-`html` field markup is sanitized with `wp_kses()` before rendering. To allow custom tags or attributes, pass an `allowed_html` array in the field definition.
+---
 
-## Advanced Features
+### `info`
 
-### Conditional Field Display
-
-Show/hide fields based on other field values:
+Renders the field's `description` as a styled info block (no input).
 
 ```php
 [
-    'id'         => 'api_endpoint',
-    'type'       => 'text',
-    'label'      => __( 'API Endpoint', 'my-plugin' ),
-    'conditions' => [
-        [
-            'field'    => 'enable_api',     // Field to check
-            'operator' => 'equals',         // Supports 'equals', 'not_equals', 'in', '>', '<', 'truthy', etc.
-            'value'    => true,             // Value to match
-        ],
-    ],
+    'id'          => 'upgrade_notice',
+    'type'        => 'info',
+    'label'       => 'Pro Feature',
+    'description' => 'Upgrade to Pro to unlock this feature.',
 ]
 ```
 
-Multiple conditions (AND logic):
+---
+
+## 👁 Visibility Conditions
+
+Show or hide any field, section, or tab based on another field's value.
+
+### Simple (AND — all rules must pass)
 
 ```php
 'conditions' => [
-    ['field' => 'enable_api', 'operator' => 'equals', 'value' => true],
-    ['field' => 'mode', 'operator' => 'equals', 'value' => 'advanced'],
+    ['field' => 'enable_api', 'operator' => 'truthy'],
+    ['field' => 'mode',       'operator' => 'equals', 'value' => 'advanced'],
 ]
 ```
 
-Complex nested conditions (OR / AND logic):
+### Nested OR / AND
 
 ```php
 'conditions' => [
     'relation' => 'OR',
-    ['field' => 'mode', 'operator' => 'equals', 'value' => 'advanced'],
+    ['field' => 'mode', 'operator' => 'equals', 'value' => 'custom'],
     [
         'relation' => 'AND',
-        ['field' => 'enable_api', 'operator' => 'equals', 'value' => true],
-        ['field' => 'environment', 'operator' => 'equals', 'value' => 'production'],
+        ['field' => 'mode',     'operator' => 'equals', 'value' => 'auto'],
+        ['field' => 'override', 'operator' => 'equals', 'value' => '1'],
     ],
 ]
 ```
 
-### Conditional Tab/Section Visibility
+### Supported Operators
 
-Hide entire tabs or sections based on field values:
+| Operator | Meaning |
+|----------|---------|
+| `equals` / `==` | Exactly equal |
+| `not_equals` / `!=` | Not equal |
+| `in` | Value is in array |
+| `not_in` | Value is not in array |
+| `>` / `greater_than` | Greater than |
+| `>=` | Greater than or equal |
+| `<` / `less_than` | Less than |
+| `<=` | Less than or equal |
+| `truthy` | Value is truthy / not empty |
+| `falsy` | Value is falsy / empty |
 
-```php
-$tabs['advanced'] = [
-    'label'      => __( 'Advanced', 'my-plugin' ),
-    'conditions' => [
-        'field' => 'enable_advanced_mode',
-        'value' => true,
-    ],
-    'sections'   => [...],
-];
+> **Tip:** Toggle fields save as `"1"` (on) or `""` (off). Use `truthy` / `falsy` for the cleanest evaluation.
 
-// Or inside a section:
-$framework->add_section([
-    'tab_id'     => 'advanced',
-    'id'         => 'section_advanced_opts',
-    'title'      => __( 'Advanced Options', 'my-plugin' ),
-    'conditions' => [
-        ['field' => 'advanced_type', 'value' => 'pro'],
-    ],
-]);
-```
+---
 
-Multiple conditions for tabs or sections:
+## ✅ Validation
 
-```php
-'conditions' => [
-    ['field' => 'enabled', 'value' => true],
-    ['field' => 'mode', 'value' => 'pro'],
-],
-```
-
-### Field Validation
-
-Built-in validation:
+### Built-in
 
 ```php
 [
@@ -357,162 +461,113 @@ Built-in validation:
 ]
 ```
 
-Custom validation callback:
+### Custom callback
 
 ```php
 [
     'id'                => 'email',
     'type'              => 'text',
     'validate_callback' => function( $value, $field ) {
-        if ( ! is_email( $value ) ) {
-            return new WP_Error( 'invalid_email', __( 'Please enter a valid email.', 'my-plugin' ) );
-        }
-        return true;
+        return is_email( $value ) ? true : new WP_Error( 'invalid', 'Enter a valid email.' );
     },
 ]
 ```
 
-### Custom Sanitization
+### Conditional required (`required_if`)
 
 ```php
 [
-    'id'                => 'custom_field',
-    'type'              => 'text',
-    'sanitize_callback' => function( $value, $field ) {
-        return strtoupper( sanitize_text_field( $value ) );
-    },
+    'id'          => 'vat_number',
+    'type'        => 'text',
+    'label'       => 'VAT Number',
+    'required_if' => [
+        ['field' => 'business_type', 'operator' => 'equals', 'expected' => 'company'],
+    ],
 ]
 ```
 
-### Backup & Restore
+---
+
+## 🔧 Configuration Reference
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `option_name` | `string` | `'rl_framework_settings'` | wp_options key |
+| `form_field_prefix` | `string` | `'rl_options'` | HTML form field prefix |
+| `page_slug` | `string` | `'rl-options-settings'` | Admin menu slug |
+| `menu_title` | `string` | `'Plugin Settings'` | Sidebar menu text |
+| `page_title` | `string` | `'Plugin Settings'` | `<h1>` heading |
+| `capability` | `string` | `'manage_options'` | Required capability |
+| `parent_menu` | `string` | `'options-general.php'` | Parent menu page |
+| `text_domain` | `string` | `'rl-options-framework'` | i18n text domain |
+| `ajax_action` | `string` | `'rl_save_options_ajax'` | AJAX action name |
+| `assets_url` | `string` | Auto-detected | URL to the `assets/` folder |
+| `version` | `string` | `'2.2.0'` | For cache-busting enqueued assets |
+
+---
+
+## 🪝 Filter Hooks
 
 ```php
-// Create backup
-$backup = $framework->create_backup();
-
-// Restore from backup
-$framework->restore_backup();
-
-// Export settings as JSON
-$json = $framework->export_settings();
-
-// Import settings from JSON
-$result = $framework->import_settings( $json );
-
-// Reset to defaults
-$framework->reset_to_defaults();
-```
-
-Imported settings are validated and sanitized against the registered field schema before they are saved. Unknown field IDs are discarded.
-
-## Filter Hooks
-
-### Main Tabs Filter
-
-Filter name format: `{option_name}_framework_tabs`
-
-```php
+// Register tabs/fields
 add_filter( 'my_plugin_settings_framework_tabs', function( $tabs, $framework ) {
-    // Modify $tabs array
+    // Modify $tabs and return
     return $tabs;
 }, 10, 2 );
-```
 
-### Framework Boot Hook
-
-Hook name format: `{option_name}_framework_boot`
-
-```php
+// Run logic after the framework boots
 add_action( 'my_plugin_settings_framework_boot', function( $framework ) {
-    // Do something when framework initializes
+    // e.g. register custom field types
 }, 10 );
 ```
 
-## Configuration Options
+---
 
-| Option | Type | Description | Default |
-|--------|------|-------------|---------|
-| `option_name` | string | Database option name | `'rl_framework_settings'` |
-| `form_field_prefix` | string | Form field name prefix | `'rl_options'` |
-| `page_slug` | string | Admin page slug | `'rl-options-settings'` |
-| `menu_title` | string | Menu title | `'Plugin Settings'` |
-| `page_title` | string | Page title | `'Plugin Settings'` |
-| `capability` | string | Required capability | `'manage_options'` |
-| `parent_menu` | string | Parent menu | `'options-general.php'` |
-| `text_domain` | string | i18n text domain | `'rl-options-framework'` |
-| `ajax_action` | string | AJAX action name | `'rl_save_options_ajax'` |
-| `assets_url` | string | URL to assets folder | Auto-detected |
-| `version` | string | Plugin version for cache busting | `'2.1.0'` |
+## 💾 Import / Export / Backup
 
-## Structure Overview
-
-```
-rloptionsFramework/
-├── class-rl-options-framework.php  # Main framework class
-├── main.php                         # Bootstrap file
-├── README.md                        # This file
-└── assets/
-    ├── css/
-    │   └── options-framework.css    # Framework styles
-    └── js/
-        └── options-framework.js     # Framework JavaScript
+```php
+$json   = $framework->export_settings();           // Export as JSON string
+$result = $framework->import_settings( $json );    // Validates before saving
+$backup = $framework->create_backup();             // Snapshot current state
+        $framework->restore_backup();              // Roll back to last backup
+        $framework->reset_to_defaults();           // Wipe and restore defaults
 ```
 
-## CSS Classes Reference
+Imported JSON is validated against the registered field schema — unknown keys are silently discarded.
 
-All CSS classes use the `.rl-` prefix:
+---
 
-- `.rl-options-page` - Main wrapper
-- `.rl-tab-panel` - Tab content panel
-- `.rl-field` - Field wrapper
-- `.rl-sidebar-layout` - Sidebar navigation layout
-- `.rl-section` - Section container
-- `.rl-accordion-toggle` - Accordion header
-- `.rl-toggle` - Toggle field wrapper
-- `.rl-submit-bar` - Submit button bar
-
-## Data Attributes Reference
-
-- `data-rl-tab` - Tab identifier
-- `data-rl-panel` - Panel identifier
-- `data-rl-section` - Section identifier
-- `data-conditions` - Field conditions (JSON)
-- `data-tab-conditions` - Tab conditions (JSON)
-
-## Browser Support
-
-- Chrome (latest)
-- Firefox (latest)
-- Safari (latest)
-- Edge (latest)
-
-## Dependencies
+## 📋 Requirements
 
 - WordPress 5.0+
 - PHP 7.4+
 - jQuery (bundled with WordPress)
 - jQuery UI Datepicker (bundled with WordPress)
 - WP Color Picker (bundled with WordPress)
-- SweetAlert2 (local vendor by default, CDN fallback supported)
-- Tippy.js + Popper.js (local vendor by default, CDN fallback supported)
+- SweetAlert2 (local vendor or CDN fallback)
+- Tippy.js + Popper.js (local vendor or CDN fallback)
 
-### Local vs CDN Assets
+---
 
-The framework supports both local vendor assets and CDN-hosted assets.
+## 📄 License
 
-- Enable local vendor assets with `use_local_assets_toggle` and `local_assets_field_id`.
-- Set `assets_url` correctly so local vendor files resolve from `assets/vendor/`.
-- If local mode is disabled, framework falls back to CDN URLs for SweetAlert2, Tippy.js, and Popper.js.
+GPL-2.0-or-later — compatible with the WordPress ecosystem.
 
-## License
+---
 
-This framework is designed to be portable and can be used in any WordPress plugin project.
+## 👤 Credits
 
-## Credits
+Developed by **[David Rosendo](https://github.com/drosendo)** · a **[RosendoLabs](https://rosendolabs.com)** product.
 
-Developed by Rosendo Labs as a generic, reusable options framework for WordPress plugins.
+---
 
-## Changelog
+## 📦 Changelog
+
+### 2.2.0
+- Added nested `AND` / `OR` condition groups for fields, sections and tabs
+- Removed all legacy visibility aliases (`show_if`, `visibility_rules`)
+- Renamed plugin-specific CSS classes to generic `rl-options-*` prefix
+- Added GPL-2.0 `LICENSE` file and `example-plugin.php` quick-start
 
 ### 2.1.1
 - Hardened `html` fields to sanitize rendered markup with a configurable allowlist
@@ -524,15 +579,11 @@ Developed by Rosendo Labs as a generic, reusable options framework for WordPress
 ### 2.1.0
 - Added `datetime` field type with WordPress datepicker calendar + time input
 - Added server-side datetime validation and sanitization (`Y-m-d H:i`)
-- Enqueued WordPress jQuery UI datepicker for datetime UI
-- Clarified README dependency strategy for local vendor assets and CDN fallback
 
 ### 2.0.0
 - Complete refactor to be plugin-agnostic
-- Removed all plugin-specific references
 - Dynamic configuration via constructor
-- Conditional tab visibility
-- Enhanced documentation
+- Conditional tab/section/field visibility
 - Type-safe PHP code
 
 ### 1.0.0

@@ -338,22 +338,24 @@ class RL_Options_Render_Service
 			$data_attrs // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 		);
 
-		if (!empty($field_label)) {
-			printf(
-				'<label class="rl-field-label" for="%1$s">%2$s',
-				esc_attr($this->framework->get_input_id($field_id)),
-				wp_kses_post($field_label)
-			);
-			if (!empty($field_desc)) {
-				$tooltip_desc = $this->format_tooltip_content((string) $field_desc);
-
-				printf(
-					' <span class="rl-field-tooltip" data-tippy-content="%s"><span class="dashicons dashicons-info"></span></span>',
-					esc_attr($tooltip_desc)
-				);
-			}
-			echo '</label>';
+		if (empty($field_label)) {
+			$field_label = '&nbsp;';
 		}
+
+		printf(
+			'<label class="rl-field-label" for="%1$s">%2$s',
+			esc_attr($this->framework->get_input_id($field_id)),
+			wp_kses_post($field_label)
+		);
+		if (!empty($field_desc)) {
+			$tooltip_desc = $this->format_tooltip_content((string) $field_desc);
+
+			printf(
+				' <span class="rl-field-tooltip" data-tippy-content="%s"><span class="dashicons dashicons-info"></span></span>',
+				esc_attr($tooltip_desc)
+			);
+		}
+		echo '</label>';
 
 		echo '<div class="rl-field-control">';
 		$this->render_field_control($field, $field_value);

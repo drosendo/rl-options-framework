@@ -960,11 +960,13 @@
 			case '==':
 				if (fieldValue === true && compareValue === '1') return true;
 				if (fieldValue === false && compareValue === '0') return true;
+				if (fieldValue === null && (compareValue === '0' || compareValue === false || compareValue === '')) return true;
 				return String(fieldValue) === String(compareValue);
 			case 'not_equals':
 			case '!=':
 				if (fieldValue === true && compareValue === '1') return false;
 				if (fieldValue === false && compareValue === '0') return false;
+				if (fieldValue === null && (compareValue === '0' || compareValue === false || compareValue === '')) return false;
 				return String(fieldValue) !== String(compareValue);
 			case '>':
 			case 'greater_than':

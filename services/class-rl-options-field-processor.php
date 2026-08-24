@@ -309,9 +309,15 @@ class RL_Options_Field_Processor {
 		switch ( $operator ) {
 			case 'equals':
 			case '==':
+				if ( $current === null && ( $expected === '0' || $expected === false || $expected === '' ) ) {
+					return true;
+				}
 				return $current == $expected;
 			case 'not_equals':
 			case '!=':
+				if ( $current === null && ( $expected === '0' || $expected === false || $expected === '' ) ) {
+					return false;
+				}
 				return $current != $expected;
 			case 'in':
 				return is_array( $expected ) ? in_array( $current, $expected, true ) : $current == $expected;

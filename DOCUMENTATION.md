@@ -34,6 +34,8 @@
 
 ## 1. Installation
 
+This section explains how to load and initialize the framework in your plugin or theme context. This is required before any options can be rendered.
+
 ### What it is
 
 Load and initialize the framework in your plugin or theme context.
@@ -104,6 +106,8 @@ add_filter('my_project_options_framework_tabs', function(array $tabs) {
 
 ## 3. Configuration
 
+Use the configuration options to customize how the framework behaves within your host application, including asset resolution and menu registration.
+
 ### Options
 
 | Option | Values | Description |
@@ -116,12 +120,10 @@ add_filter('my_project_options_framework_tabs', function(array $tabs) {
 | `use_local_assets_toggle` | `true`, `false` | Show support toggle for framework-owned local/CDN assets |
 | `local_assets_field_id` | `string` | Option key used by local-assets toggle |
 
-### Notes
-
-- If `register_menu` is `false`, host code must wire menu callback to `$framework->render_page()`.
-- If `assets_url` is provided, it takes precedence over context-based resolution.
-- `use_local_assets_toggle` only affects RL Options Framework libraries, not unrelated plugin/theme assets.
-
+> [!NOTE]
+> If `register_menu` is `false`, host code must wire menu callback to `$framework->render_page()`.
+> If `assets_url` is provided, it takes precedence over context-based resolution.
+> `use_local_assets_toggle` only affects RL Options Framework libraries, not unrelated plugin/theme assets.
 ---
 
 ## 4. Field Types
@@ -158,13 +160,11 @@ add_action('my_project_options_framework_boot', function(RL_Options_Framework $f
 });
 ```
 
-### Best-practice notes
-
-- Keep renderers output-only (no save logic inside renderer classes).
-- Keep sanitize/validate logic in framework validation pipeline.
-- Use preset/bundle registry for reusable field config, not renderer classes.
-- Add new field types by creating a new file in [fields](fields) and registering it.
-
+> [!TIP]
+> Keep renderers output-only (no save logic inside renderer classes).
+> Keep sanitize/validate logic in framework validation pipeline.
+> Use preset/bundle registry for reusable field config, not renderer classes.
+> Add new field types by creating a new file in [fields](fields) and registering it.
 ### Type contract
 
 | Type | Saved Value | Notes |
@@ -1092,7 +1092,8 @@ The `conditions` array is used to control the frontend and backend visibility of
 | `truthy` | `bool` | `['field' => 'enable', 'operator' => 'truthy']` | Value evaluates to true/not empty |
 | `falsy` | `bool` | `['field' => 'enable', 'operator' => 'falsy']` | Value evaluates to false/empty |
 
-> **Note**: For boolean toggles, saving often results in a string `"1"` or `"0"`. The `equals` operator is designed to smartly match `true` with `"1"` and `false` with `"0"` or `""`.
+> [!NOTE]
+> For boolean toggles, saving often results in a string `"1"` or `"0"`. The `equals` operator is designed to smartly match `true` with `"1"` and `false` with `"0"` or `""`.
 
 ## 18. Validation Rules & Required-If Syntax
 

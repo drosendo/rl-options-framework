@@ -66,7 +66,7 @@ $framework->init();
 
 Runtime hook names are derived from `option_name`.
 
-### Hook map
+### Dynamic Hooks (Based on option_name)
 
 | Hook Type | Pattern | Example |
 |----------|---------|---------|
@@ -74,6 +74,34 @@ Runtime hook names are derived from `option_name`.
 | Boot action | `{option_name}_framework_boot` | `my_project_options_framework_boot` |
 | Before reset action | `rl_options_before_reset_{option_name}` | `rl_options_before_reset_my_project_options` |
 | After reset action | `rl_options_after_reset_{option_name}` | `rl_options_after_reset_my_project_options` |
+| Settings saved action | `{option_name}_settings_saved` | `my_project_options_settings_saved` |
+| Settings reset action | `{option_name}_settings_reset` | `my_project_options_settings_reset` |
+
+### Available Filters
+
+The framework provides several filters you can use with `add_filter` to modify its behavior:
+
+| Filter Name | Description | Parameters |
+|-------------|-------------|------------|
+| `rl_options_framework_header_meta_html` | Inject custom HTML into the header area of the options page. | `string $html`, `array $config`, `RL_Options_Framework $framework` |
+| `rl_options_framework_html_allowed_html` | Modify the `wp_kses` allowed tags for the `html` field type. | `array $allowed_html`, `array $field`, `array $context` |
+| `rl_options_framework_resolved_provider_options` | Filter the resolved options array before it's sent to the field. | `array $options`, `array $provider`, `array $field`, `array $state`, `RL_Options_Framework $framework` |
+| `rl_options_framework_country_reference_sources` | Modify or add data sources for the country reference service. | `array $sources`, `RL_Options_Framework $framework` |
+| `rl_options_framework_country_reference_data` | Filter the normalized array of country data before caching. | `array $data`, `array $sources`, `RL_Options_Framework $framework` |
+| `rl_options_framework_country_reference_ttl` | Change the transient caching TTL (in seconds) for geo endpoints. | `int $ttl`, `RL_Options_Framework $framework` |
+| `rl_options_framework_country_subdivisions` | Filter the subdivisions (states/districts) for a specific country. | `array $out`, `string $country_code`, `RL_Options_Framework $framework` |
+| `rl_options_framework_country_municipalities` | Filter municipalities (cities) for a specific country & subdivision. | `array $out`, `string $country_code`, `string $subdivision`, `RL_Options_Framework $framework` |
+
+### Global Actions
+
+| Action Name | Description |
+|-------------|-------------|
+| `rl_options_before_reset` | Fires before any framework option is reset. Passes `$option_name`. |
+| `rl_options_after_reset` | Fires after any framework option is reset. Passes `$option_name`, `$defaults`. |
+| `rl_options_framework_settings_saved` | Fires after any framework option saves. Passes `$saved_data`, `$config`, `$framework`. |
+| `rl_options_framework_settings_reset` | Fires after any framework option resets. Passes `$config`, `$framework`. |
+| `rl_options_framework_field_dependency_resolved` | Fires when an async dependency field is resolved. |
+| `rl_options_framework_country_reference_warmed` | Fires when the country reference cache is refreshed. |
 
 ### Example
 

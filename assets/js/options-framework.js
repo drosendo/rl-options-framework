@@ -49,7 +49,7 @@
 	}
 
 	rlInfo('RL Options Framework Script Loaded', {
-		debugLevel: currentLevel,
+		debugLevel: framework.debug_level || 'error',
 		syncHistory: shouldSyncHistory,
 		swalFallback: useSwalFallback,
 	});

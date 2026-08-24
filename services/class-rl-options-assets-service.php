@@ -35,8 +35,48 @@ class RL_Options_Assets_Service {
 	 *
 	 * @param string $hook Current admin page hook.
 	 */
+	
+	/**
+	 * Enqueue global assets like the standalone JS logger.
+	 * Runs on both admin and frontend.
+	 */
+	public function enqueue_global_assets(): void
+	{
+		$debug_level = $this->resolve_debug_level();
+		if ('debug' === $debug_level) {
+			$config = $this->framework->get_config();
+			$assets_url = $this->resolve_assets_url();
+			
+			wp_enqueue_script(
+				$config['page_slug'] . '-rl-logger',
+				$assets_url . 'js/rl-logger.js',
+				[],
+				$config['version'],
+				false // Load early in head or body
+			);
+			
+			// We need to pass the debug level to the global window object
+			wp_localize_script(
+				$config['page_slug'] . '-rl-logger',
+				'rlFrameworkDebugConfig',
+				[
+					'debug_level' => $debug_level,
+				]
+			);
+			
+			// Add inline script to set the debug level early
+			wp_add_inline_script(
+				$config['page_slug'] . '-rl-logger',
+				'window.rlFrameworkDebugLevel = rlFrameworkDebugConfig.debug_level;',
+				'before'
+			);
+		}
+	}
+
 	public function enqueue_assets(string $hook): void
 	{
+		$this->enqueue_global_assets();
+
 		if (!$this->is_target_admin_page($hook)) {
 			return;
 		}
@@ -164,7 +204,7 @@ class RL_Options_Assets_Service {
 		wp_enqueue_script(
 			$config['page_slug'] . '-framework',
 			$assets_url . 'js/options-framework.js',
-			['jquery', 'wp-color-picker', 'jquery-ui-datepicker', 'sweetalert2', 'tippy-js'],
+			['jquery', 'wp-color-picker', 'jquery-ui-datepicker', 'sweetalert2', 'tippy-js', $config['page_slug'] . '-rl-logger'],
 			$config['version'],
 			true
 		);

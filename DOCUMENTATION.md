@@ -1471,15 +1471,34 @@ RL_Logger::error( 'This is an error log.', [ 'context' => 'data' ] );
 
 ### JS Logging (`window.rlFramework`)
 
-The JS logging functions are exposed on the global `window.rlFramework` object. You can configure the prefix dynamically.
+The JS logging utility has been extracted to a **standalone script** (`rl-logger.js`) so that it can be loaded independently of the options page.
 
 #### How to use
+
+1. Set the `debug_field_id` in your framework config.
+2. Add a native `toggle` field with that ID in your settings.
+
+```php
+$framework = new RL_Options_Framework([
+    // ...
+    'debug_field_id' => 'enable_debug_mode',
+]);
+
+$framework->add_field([
+    'id'      => 'enable_debug_mode',
+    'type'    => 'toggle',
+    'label'   => 'Enable Debug Mode',
+    'default' => false,
+]);
+```
+
+When this toggle is ON, the framework automatically enqueues the lightweight `rl-logger.js` on **all admin and frontend pages**. You can then safely log globally:
 
 ```javascript
 // Set a custom prefix
 window.rlFramework.setLogPrefix( 'My Plugin' );
 
-// Log messages
+// Log messages anywhere (will only output if debug is ON)
 window.rlFramework.log( 'This is a debug log.' );
 window.rlFramework.info( 'This is an info log.' );
 window.rlFramework.warn( 'This is a warning.' );

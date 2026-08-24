@@ -349,6 +349,7 @@ final class RL_Options_Framework
 		}
 
 		add_action('admin_enqueue_scripts', [$this, 'enqueue_assets']);
+		add_action('wp_enqueue_scripts', [$this, 'enqueue_frontend_assets']);
 		add_action('admin_post_' . $this->config['page_slug'] . '_save', [$this, 'handle_save']);
 		add_action('wp_ajax_' . $this->config['ajax_action'], [$this, 'handle_ajax_save']);
 		add_action('wp_ajax_rl_options_framework_field_options', [$this, 'handle_ajax_field_options']);
@@ -552,6 +553,16 @@ final class RL_Options_Framework
 	/**
 	 * Enqueue admin assets (delegated to assets service).
 	 */
+	
+	/**
+	 * Enqueue frontend assets (delegated to assets service).
+	 */
+	public function enqueue_frontend_assets(): void
+	{
+		if ($this->assets_service) {
+			$this->assets_service->enqueue_global_assets();
+		}
+	}
 	public function enqueue_assets(string $hook): void
 	{
 		if ($this->assets_service) {

@@ -598,6 +598,17 @@ RL_Logger::info( 'This is an info log.' );
 
 ### JS Logging
 
+The JS logger is a standalone script that is automatically enqueued globally when debugging is enabled. Add a debug toggle to your settings:
+
+```php
+$framework = new RL_Options_Framework([
+    'debug_field_id' => 'enable_debug',
+]);
+// Add 'enable_debug' as a toggle field...
+```
+
+Then use the global logger anywhere:
+
 ```javascript
 window.rlFramework.setLogPrefix( 'My Plugin' );
 window.rlFramework.log( 'This is a debug log.' );

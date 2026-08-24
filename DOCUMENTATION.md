@@ -4,6 +4,34 @@
 
 ---
 
+## Table of Contents
+
+1. [Installation](#1-installation)
+2. [Canonical Hooks](#2-canonical-hooks)
+3. [Configuration](#3-configuration)
+4. [Field Types](#4-field-types)
+5. [Declarative Dependencies and Async Providers](#5-declarative-dependencies-and-async-providers)
+6. [Framework Preset and Bundle Tools](#6-framework-preset-and-bundle-tools)
+7. [Typed Field Aliases](#7-typed-field-aliases)
+8. [Provider Shortcut and Schema Defaults](#8-provider-shortcut-and-schema-defaults)
+9. [Country Reference Service and API Layer](#9-country-reference-service-and-api-layer)
+10. [Validation and Save UX](#10-validation-and-save-ux)
+11. [Security and Performance Notes](#11-security-and-performance-notes)
+12. [Internal Service Architecture](#12-internal-service-architecture)
+13. [Migration Notes](#13-migration-notes)
+14. [Requirements & Dependencies](#14-requirements-dependencies)
+15. [Complete Field Definition Schema Reference](#15-complete-field-definition-schema-reference)
+16. [Public API Reference](#16-public-api-reference)
+17. [Visibility Rules (`conditions`)](#17-visibility-rules-conditions)
+18. [Validation Rules & Required-If Syntax](#18-validation-rules-required-if-syntax)
+19. [Callback Signatures](#19-callback-signatures)
+20. [Common Patterns & Recipes](#20-common-patterns-recipes)
+21. [Troubleshooting & FAQ](#21-troubleshooting-faq)
+22. [Error Messages Reference](#22-error-messages-reference)
+23. [Universal Logging](#23-universal-logging)
+
+---
+
 ## 1. Installation
 
 ### What it is
@@ -564,7 +592,7 @@ If `pattern` is provided without regex delimiters, framework wraps it as anchore
 
 ---
 
-## 6. Country Reference Service and API Layer
+## 9. Country Reference Service and API Layer
 
 ### What it is
 
@@ -616,7 +644,7 @@ rl_options_framework_get_country_municipalities('PT', 'lisboa');
 
 ---
 
-## 9. Validation and Save UX
+## 10. Validation and Save UX
 
 ### Validation behavior
 
@@ -633,7 +661,7 @@ rl_options_framework_get_country_municipalities('PT', 'lisboa');
 
 ---
 
-## 10. Security and Performance Notes
+## 11. Security and Performance Notes
 
 ### Security
 
@@ -652,7 +680,7 @@ rl_options_framework_get_country_municipalities('PT', 'lisboa');
 
 ---
 
-## 11. Internal Service Architecture
+## 12. Internal Service Architecture
 
 ### What it is
 
@@ -717,7 +745,7 @@ $options = $framework->normalize_options_for_transport([
 
 ---
 
-## 12. Migration Notes
+## 13. Migration Notes
 
 ### Hook naming
 
@@ -737,7 +765,7 @@ The framework runtime reads only `{option_name}_framework_tabs`.
 
 ---
 
-## 13. Requirements & Dependencies
+## 14. Requirements & Dependencies
 
 ### PHP
 
@@ -763,7 +791,7 @@ The framework runtime reads only `{option_name}_framework_tabs`.
 
 ---
 
-## 14. Complete Field Definition Schema Reference
+## 15. Complete Field Definition Schema Reference
 
 ### Universal field properties
 
@@ -882,7 +910,7 @@ Every field accepts these properties:
 
 ---
 
-## 15. Public API Reference
+## 16. Public API Reference
 
 ### Constructor & Initialization
 
@@ -1045,7 +1073,7 @@ Register WordPress menu/submenu manually if `register_menu` is `false`.
 
 ---
 
-## 16. Visibility Rules (`conditions`)
+## 17. Visibility Rules (`conditions`)
 
 The `conditions` array is used to control the frontend and backend visibility of fields, sections, and tabs based on the values of other fields. It evaluates dynamically in JS when the user interacts with the form, and statically in PHP when saving.
 
@@ -1066,7 +1094,7 @@ The `conditions` array is used to control the frontend and backend visibility of
 
 > **Note**: For boolean toggles, saving often results in a string `"1"` or `"0"`. The `equals` operator is designed to smartly match `true` with `"1"` and `false` with `"0"` or `""`.
 
-## 17. Validation Rules & Required-If Syntax
+## 18. Validation Rules & Required-If Syntax
 
 ### Dependency operators
 
@@ -1101,7 +1129,7 @@ The `conditions` array is used to control the frontend and backend visibility of
 
 ---
 
-## 18. Callback Signatures
+## 19. Callback Signatures
 
 ### Custom sanitize callback
 
@@ -1176,7 +1204,7 @@ $framework->register_field_bundle('name_pair', 'my_bundle_resolver');
 
 ---
 
-## 19. Common Patterns & Recipes
+## 20. Common Patterns & Recipes
 
 ### Pattern 1: Multi-step form with conditional sections
 
@@ -1336,7 +1364,7 @@ $framework->add_field([
 
 ---
 
-## 20. Troubleshooting & FAQ
+## 21. Troubleshooting & FAQ
 
 ### Issue: Fields not appearing
 
@@ -1388,7 +1416,7 @@ $framework->add_field([
 
 ---
 
-## 21. Error Messages Reference
+## 22. Error Messages Reference
 
 ### Validation errors
 
@@ -1419,7 +1447,7 @@ $framework->add_field([
 
 ---
 
-## 15. Universal Logging
+## 23. Universal Logging
 
 ### What it is
 

@@ -20,29 +20,38 @@
 		return DEBUG_LEVELS[target] <= DEBUG_LEVELS[currentLevel] || window.rlFrameworkDebug === true;
 	};
 
+	const getLogPrefix = () => framework.logPrefix || 'RL Framework';
+
 	const rlLog = function(...args) {
 		if (shouldLog('debug')) {
-			console.log('%c[RL Framework]', 'color: #4CAF50; font-weight: bold;', ...args);
+			console.log('%c[' + getLogPrefix() + ']', 'color: #4CAF50; font-weight: bold;', ...args);
 		}
 	};
 
 	const rlInfo = function(...args) {
 		if (shouldLog('info')) {
-			console.info('%c[RL Framework INFO]', 'color: #2196F3; font-weight: bold;', ...args);
+			console.info('%c[' + getLogPrefix() + ' INFO]', 'color: #2196F3; font-weight: bold;', ...args);
 		}
 	};
 
 	const rlWarn = function(...args) {
 		if (shouldLog('warn')) {
-			console.warn('%c[RL Framework WARN]', 'color: #ff9800; font-weight: bold;', ...args);
+			console.warn('%c[' + getLogPrefix() + ' WARN]', 'color: #ff9800; font-weight: bold;', ...args);
 		}
 	};
 
 	const rlError = function(...args) {
 		if (shouldLog('error')) {
-			console.error('%c[RL Framework ERROR]', 'color: #f44336; font-weight: bold;', ...args);
+			console.error('%c[' + getLogPrefix() + ' ERROR]', 'color: #f44336; font-weight: bold;', ...args);
 		}
 	};
+
+	framework.log = rlLog;
+	framework.info = rlInfo;
+	framework.warn = rlWarn;
+	framework.error = rlError;
+	framework.setLogPrefix = function(prefix) { framework.logPrefix = prefix; };
+	window.rlFramework = framework;
 
 	function blurActiveElementForModal() {
 		const active = document.activeElement;

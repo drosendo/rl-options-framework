@@ -48,6 +48,13 @@ final class RL_Logger {
 		self::$level = $level;
 	}
 
+	/**
+	 * Set the log prefix.
+	 */
+	public static function set_prefix( string $prefix ): void {
+		self::$prefix = $prefix;
+	}
+
 	public static function get_level(): string {
 		return self::$level;
 	}

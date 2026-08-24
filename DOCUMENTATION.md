@@ -1416,3 +1416,43 @@ $framework->add_field([
 | `invalid_payload` | Malformed request body | HTTP 400 + `"Invalid request"` |
 | `save_failed` | `update_option()` returned false | HTTP 500 + `"Failed to save options"` |
 | `validation_failed` | Field validation error | HTTP 422 + validation details |
+
+---
+
+## 15. Universal Logging
+
+### What it is
+
+The framework provides a unified logging utility that can be configured and consumed globally by the plugin that implements the framework, both on the PHP backend and JS frontend.
+
+### PHP Logging (`RL_Logger`)
+
+You can set a custom prefix for all logs generated via the `RL_Logger` class.
+
+#### How to use
+
+```php
+// Set a custom prefix instead of the default '[RL Framework]'
+RL_Logger::set_prefix( '[My Plugin]' );
+
+// Log messages
+RL_Logger::info( 'This is an info log.' );
+RL_Logger::error( 'This is an error log.', [ 'context' => 'data' ] );
+```
+
+### JS Logging (`window.rlFramework`)
+
+The JS logging functions are exposed on the global `window.rlFramework` object. You can configure the prefix dynamically.
+
+#### How to use
+
+```javascript
+// Set a custom prefix
+window.rlFramework.setLogPrefix( 'My Plugin' );
+
+// Log messages
+window.rlFramework.log( 'This is a debug log.' );
+window.rlFramework.info( 'This is an info log.' );
+window.rlFramework.warn( 'This is a warning.' );
+window.rlFramework.error( 'This is an error.' );
+```

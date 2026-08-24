@@ -490,7 +490,8 @@ Show or hide any field, section, or tab based on another field's value.
 | `truthy` | Value is truthy / not empty |
 | `falsy` | Value is falsy / empty |
 
-> **Tip:** Toggle fields save as `"1"` (on) or `""` (off). Use `truthy` / `falsy` for the cleanest evaluation.
+> [!TIP]
+> Toggle fields save as `"1"` (on) or `""` (off). Use `truthy` / `falsy` for the cleanest evaluation.
 
 ---
 
@@ -581,6 +582,26 @@ $backup = $framework->create_backup();             // Snapshot current state
 ```
 
 Imported JSON is validated against the registered field schema — unknown keys are silently discarded.
+
+---
+
+## 📝 Universal Logging
+
+The framework provides a unified logging utility for both PHP and JS. You can configure the prefix so all logs reflect your plugin name.
+
+### PHP Logging
+
+```php
+RL_Logger::set_prefix( '[My Plugin]' );
+RL_Logger::info( 'This is an info log.' );
+```
+
+### JS Logging
+
+```javascript
+window.rlFramework.setLogPrefix( 'My Plugin' );
+window.rlFramework.log( 'This is a debug log.' );
+```
 
 ---
 

@@ -470,6 +470,23 @@ Renders a reset button that deletes all settings and restores defaults, with a b
 ],
 ```
 
+### 4.12 `reset_section` field
+
+#### What it is
+
+Renders a reset button that deletes and restores defaults **only for the specific section** the button is placed in, leaving all other sections and settings intact. It includes a built-in browser confirmation prompt.
+
+#### How to use
+
+```php
+'reset_display_options' => [
+    'id'              => 'reset_display_options',
+    'type'            => 'reset_section',
+    'button_label'    => __('Reset Section Defaults', 'my-plugin'),
+    'confirm_message' => __('Are you sure you want to reset this section?', 'my-plugin'),
+],
+```
+
 ---
 
 ## 5. Declarative Dependencies and Async Providers

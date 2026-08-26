@@ -1346,6 +1346,33 @@
 				}
 			});
 		});
+
+		const resetSectionBtns = document.querySelectorAll('.rl-field-reset-section-btn');
+		resetSectionBtns.forEach(btn => {
+			btn.addEventListener('click', function(e) {
+				const confirmMsg = this.getAttribute('data-confirm-msg');
+				if (!window.confirm(confirmMsg)) {
+					return;
+				}
+				
+				const wrapper = this.closest('.rl-field-control');
+				if (!wrapper) return;
+				
+				const hiddenInput = wrapper.querySelector('.rl-field-reset-section-input');
+				if (hiddenInput) {
+					hiddenInput.value = this.getAttribute('data-payload');
+					// Automatically submit the form
+					const form = this.closest('form');
+					if (form) {
+						if (typeof jQuery !== 'undefined') {
+							jQuery(form).trigger('submit');
+						} else {
+							form.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
+						}
+					}
+				}
+			});
+		});
 	}
 
 

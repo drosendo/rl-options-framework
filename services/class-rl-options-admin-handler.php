@@ -56,6 +56,32 @@ class RL_Options_Admin_Handler {
 		$fields_map = $this->framework->get_fields_index();
 		RL_Logger::debug( 'Total fields registered: ' . count( $fields_map ) );
 
+		// Check for reset section payload
+		$reset_section_input_name = $this->framework->get_config( 'form_field_prefix' ) . '_reset_section';
+		if ( ! empty( $_POST[ $reset_section_input_name ] ) ) {
+			$reset_section_payload = sanitize_text_field( wp_unslash( $_POST[ $reset_section_input_name ] ) );
+			$parts = explode( ':', $reset_section_payload );
+			if ( count( $parts ) === 2 ) {
+				$this->framework->get_storage_service()->reset_section_to_defaults( $parts[0], $parts[1] );
+				
+				// Fire generic post-reset hooks
+				do_action( $this->framework->get_config( 'option_name' ) . '_settings_reset' ); // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.DynamicHooknameFound
+				do_action( 'rl_options_framework_settings_reset', $this->framework->get_config(), $this->framework ); // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound
+
+				$message_param = $this->framework->get_config( 'form_field_prefix' ) . '_message';
+				wp_safe_redirect(
+					add_query_arg(
+						[
+							'page'         => $this->framework->get_config( 'page_slug' ),
+							$message_param => 'saved',
+						],
+						admin_url( 'admin.php' )
+					)
+				);
+				exit;
+			}
+		}
+
 		$input = isset( $_POST[ $this->framework->get_config( 'form_field_prefix' ) ] ) ? wp_unslash( $_POST[ $this->framework->get_config( 'form_field_prefix' ) ] ) : []; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
 		RL_Logger::debug( 'Form field prefix: ' . $this->framework->get_config( 'form_field_prefix' ) );
 
@@ -255,6 +281,27 @@ class RL_Options_Admin_Handler {
 					'imported' => true, // We can reuse the `imported` flag to trigger the page reload in JS
 				]
 			);
+		}
+
+		// Check for reset section payload
+		$reset_section_input_name = $this->framework->get_config( 'form_field_prefix' ) . '_reset_section';
+		if ( ! empty( $_POST[ $reset_section_input_name ] ) ) {
+			$reset_section_payload = sanitize_text_field( wp_unslash( $_POST[ $reset_section_input_name ] ) );
+			$parts = explode( ':', $reset_section_payload );
+			if ( count( $parts ) === 2 ) {
+				$this->framework->get_storage_service()->reset_section_to_defaults( $parts[0], $parts[1] );
+				
+				// Fire generic post-reset hooks
+				do_action( $this->framework->get_config( 'option_name' ) . '_settings_reset' ); // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.DynamicHooknameFound
+				do_action( 'rl_options_framework_settings_reset', $this->framework->get_config(), $this->framework ); // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound
+
+				wp_send_json_success(
+					[
+						'message' => __( 'Section settings reset successfully. The page will reload.', 'smart-variations-images-premium' ),
+						'imported' => true, // Reusing `imported` flag to trigger page reload
+					]
+				);
+			}
 		}
 
 		$input = isset( $_POST[ $this->framework->get_config( 'form_field_prefix' ) ] ) ? wp_unslash( $_POST[ $this->framework->get_config( 'form_field_prefix' ) ] ) : []; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized

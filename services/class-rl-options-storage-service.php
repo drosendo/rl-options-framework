@@ -203,4 +203,44 @@ class RL_Options_Storage_Service {
 
 		return $result;
 	}
+
+	/**
+	 * Reset a specific section to defaults.
+	 *
+	 * @param string $tab_id     Tab ID.
+	 * @param string $section_id Section ID.
+	 * @return bool True on success, false on failure.
+	 */
+	public function reset_section_to_defaults( string $tab_id, string $section_id ): bool {
+		$config      = $this->framework->config;
+		$option_name = $config['option_name'];
+		$fields_map  = $this->framework->get_fields_index();
+		
+		$current_options = get_option( $option_name, [] );
+		if ( ! is_array( $current_options ) ) {
+			$current_options = [];
+		}
+
+		do_action( "rl_options_before_reset_section_{$option_name}", $tab_id, $section_id ); // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound
+		do_action( 'rl_options_before_reset_section', $option_name, $tab_id, $section_id ); // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound
+
+		$this->create_backup();
+
+		foreach ( $fields_map as $field_id => $field ) {
+			if ( isset( $field['__tab_id'] ) && $field['__tab_id'] === $tab_id && isset( $field['__section_id'] ) && $field['__section_id'] === $section_id ) {
+				if ( isset( $field['default'] ) ) {
+					$current_options[ $field_id ] = $field['default'];
+				} else {
+					unset( $current_options[ $field_id ] );
+				}
+			}
+		}
+
+		$result = update_option( $option_name, $current_options );
+
+		do_action( "rl_options_after_reset_section_{$option_name}", $current_options, $tab_id, $section_id ); // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound
+		do_action( 'rl_options_after_reset_section', $option_name, $current_options, $tab_id, $section_id ); // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound
+
+		return $result;
+	}
 }

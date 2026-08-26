@@ -45,7 +45,7 @@
 .rl-options-page .rl-plan-note {
 	color: #50575e;
 	font-size: 12px;
-	margin-right: 4px;
+	margin-inline-end: 4px;
 }
 
 .rl-options-page .rl-plan-cta {
@@ -92,8 +92,8 @@
 
 .rl-tab-description+.rl-sidebar-layout {
 	margin-top: 0;
-	margin-left: -24px;
-	margin-right: -24px;
+	margin-inline-start: -24px;
+	margin-inline-end: -24px;
 	margin-bottom: -24px;
 	border-top: 1px solid #dcdcde;
 }
@@ -107,7 +107,7 @@
 .rl-sidebar {
 	width: 220px;
 	background: #f6f7f7;
-	border-right: 1px solid #dcdcde;
+	border-inline-end: 1px solid #dcdcde;
 	flex-shrink: 0;
 }
 
@@ -140,8 +140,8 @@
 	background: #fff;
 	color: #2271b1;
 	font-weight: 600;
-	border-left: 3px solid #2271b1;
-	padding-left: 17px;
+	border-inline-start: 3px solid #2271b1;
+	padding-inline-start: 17px;
 }
 
 .rl-content {
@@ -189,36 +189,36 @@
 }
 
 .rl-options-page .rl-field-indented {
-	margin-left: 32px;
+	margin-inline-start: 32px;
 	position: relative;
 	background: transparent;
-	border-left: 1px solid #e1e4e8;
+	border-inline-start: 1px solid #e1e4e8;
 	padding: 12px 14px;
 	border-radius: 4px;
 	margin-bottom: 16px;
 }
 
 .rl-options-page .rl-field-indent-level-2 {
-	margin-left: 64px;
+	margin-inline-start: 64px;
 }
 
 .rl-options-page .rl-field-indent-level-3 {
-	margin-left: 96px;
+	margin-inline-start: 96px;
 }
 
 /* Additional generic levels for deeper nesting */
 .rl-options-page .rl-field-indent-level-4 {
-	margin-left: 128px;
+	margin-inline-start: 128px;
 }
 
 .rl-options-page .rl-field-indent-level-5 {
-	margin-left: 160px;
+	margin-inline-start: 160px;
 }
 
 .rl-options-page .rl-field-indented::before {
 	content: '↳';
 	position: absolute;
-	left: -18px;
+	inset-inline-start: -18px;
 	top: 22px;
 	width: auto;
 	height: auto;
@@ -231,7 +231,7 @@
 /* Visual differentiation by indentation level */
 .rl-options-page .rl-field-indent-level-1 {
 	background: transparent;
-	border-left-color: #e1e4e8;
+	border-inline-start-color: #e1e4e8;
 }
 
 .rl-options-page .rl-field-indent-level-1::before {
@@ -240,7 +240,7 @@
 
 .rl-options-page .rl-field-indent-level-2 {
 	background: #f7f9fb;
-	border-left-color: #c8d0d8;
+	border-inline-start-color: #c8d0d8;
 }
 
 .rl-options-page .rl-field-indent-level-2::before {
@@ -249,7 +249,7 @@
 
 .rl-options-page .rl-field-indent-level-3 {
 	background: #f2f6fa;
-	border-left-color: #b2bdc9;
+	border-inline-start-color: #b2bdc9;
 }
 
 .rl-options-page .rl-field-indent-level-3::before {
@@ -259,7 +259,7 @@
 .rl-options-page .rl-field-indent-level-4,
 .rl-options-page .rl-field-indent-level-5 {
 	background: #edf3f9;
-	border-left-color: #9fadb9;
+	border-inline-start-color: #9fadb9;
 }
 
 .rl-options-page .rl-field-indent-level-4::before,
@@ -376,17 +376,17 @@
 
 .rl-options-page .rl-checkbox input,
 .rl-options-page .rl-radio input {
-	margin-right: 6px;
+	margin-inline-end: 6px;
 }
 
 .rl-options-page .rl-radio {
 	display: inline-flex;
 	align-items: center;
-	margin-right: 18px;
+	margin-inline-end: 18px;
 }
 
 .rl-options-page .rl-radio:last-child {
-	margin-right: 0;
+	margin-inline-end: 0;
 }
 
 .rl-options-page .rl-toggle {
@@ -506,8 +506,8 @@
 	-webkit-user-select: none;
 	user-select: none;
 }
-.ui-datepicker-prev { left: 4px; }
-.ui-datepicker-next { right: 4px; }
+.ui-datepicker-prev { inset-inline-start: 4px; }
+.ui-datepicker-next { inset-inline-end: 4px; }
 .ui-datepicker-prev:hover,
 .ui-datepicker-next:hover { background: rgba(255,255,255,.2); }
 /* Hide jQuery UI generated icon spans; use CSS content instead */
@@ -559,7 +559,7 @@
 }
 .ui-datepicker .ui-datepicker-current-day a:hover { background: #135e96; }
 .ui-datepicker .ui-state-disabled span { color: #c3c4c7; }
-.ui-datepicker-buttonpane { margin-top: 6px; text-align: right; }
+.ui-datepicker-buttonpane { margin-top: 6px; text-align: end; }
 }
 
 .rl-options-page .rl-accordion-toggle {
@@ -661,14 +661,14 @@
 	margin-top: 24px;
 	padding-top: 16px;
 	border-top: 1px solid #dcdcde;
-	text-align: right;
+	text-align: end;
 }
 
 /* Info Field */
 .rl-info-field {
 	padding: 12px 16px;
 	background: #f0f6fc;
-	border-left: 4px solid #0073aa;
+	border-inline-start: 4px solid #0073aa;
 	border-radius: 2px;
 	line-height: 1.6;
 }
@@ -688,7 +688,7 @@
 .rl-info-field ul,
 .rl-info-field ol {
 	margin: 0.5em 0;
-	padding-left: 20px;
+	padding-inline-start: 20px;
 }
 
 .rl-info-field h2,
@@ -727,7 +727,7 @@
 }
 
 .rl-options-page .rl-support-card-reset {
-	border-left-color: #d63638;
+	border-inline-start-color: #d63638;
 	background: #fcf0f1;
 }
 
@@ -761,7 +761,7 @@
 	color: #fff;
 	text-transform: uppercase;
 	border-radius: 4px;
-	margin-left: 6px;
+	margin-inline-start: 6px;
 	vertical-align: middle;
 	letter-spacing: 0.03em;
 }
@@ -776,7 +776,7 @@
 	padding: 12px 16px !important;
 	background: #fffbeb;
 	border: 1px solid #fef3c7;
-	border-left: 4px solid #f59e0b;
+	border-inline-start: 4px solid #f59e0b;
 	border-radius: 6px;
 	font-size: 13px;
 	line-height: 1.6;

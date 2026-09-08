@@ -16,12 +16,30 @@ class RL_Field_Color implements RL_Field_Interface, RL_Field_Processing_Interfac
 	{
 		$input_id = (string) ($context['input_id'] ?? '');
 		$field_name = (string) ($context['field_name'] ?? '');
+		$extra_attrs = '';
+
+		$palette = $field['palette'] ?? ($field['palettes'] ?? null);
+		if ($palette !== null) {
+			if (is_array($palette)) {
+				$extra_attrs .= sprintf(' data-palettes="%s"', esc_attr((string) wp_json_encode(array_values($palette))));
+			} elseif (is_bool($palette)) {
+				$extra_attrs .= sprintf(' data-palettes="%s"', $palette ? 'true' : 'false');
+			} elseif (is_string($palette) && '' !== trim($palette)) {
+				$extra_attrs .= sprintf(' data-palettes="%s"', esc_attr(trim($palette)));
+			}
+		}
+
+		if (isset($field['alpha'])) {
+			$extra_attrs .= sprintf(' data-alpha-enabled="%s"', !empty($field['alpha']) ? 'true' : 'false');
+		}
+
 		printf(
-			'<input type="text" id="%1$s" class="rl-color-field" name="%2$s" value="%3$s" data-default-color="%4$s" />',
+			'<input type="text" id="%1$s" class="rl-color-field" name="%2$s" value="%3$s" data-default-color="%4$s"%5$s />',
 			esc_attr($input_id),
 			esc_attr($field_name),
 			esc_attr((string) $value),
-			esc_attr((string) ($field['default'] ?? ''))
+			esc_attr((string) ($field['default'] ?? '')),
+			$extra_attrs // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 		);
 	}
 

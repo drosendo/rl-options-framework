@@ -75,9 +75,71 @@
 		rlLog('✓ Tippy.js tooltips initialized');
 	}
 
-	function initColorPickers() {
-		rlLog('Initializing color pickers...');
-		$('.rl-color-field').wpColorPicker();
+	function initColorPickers(scope) {
+		const container = scope ? $(scope) : $(document);
+		const fields = container.find('.rl-color-field');
+		if (!fields.length) {
+			return;
+		}
+
+		rlLog('Initializing color pickers...', fields.length);
+
+		fields.each(function() {
+			const $field = $(this);
+			// Prevent re-initialization if already wrapped by wp-picker
+			if ($field.closest('.wp-picker-container').length) {
+				return;
+			}
+
+			const options = {};
+
+			// Parse field-level data-palettes or data-palette
+			let rawPalette = $field.attr('data-palettes');
+			if (rawPalette === undefined) {
+				rawPalette = $field.attr('data-palette');
+			}
+
+			if (rawPalette !== undefined && rawPalette !== null && rawPalette !== '') {
+				if (rawPalette === 'false' || rawPalette === false) {
+					options.palettes = false;
+				} else if (rawPalette === 'true' || rawPalette === true) {
+					if (window.rlFramework && Array.isArray(window.rlFramework.color_palette) && window.rlFramework.color_palette.length) {
+						options.palettes = window.rlFramework.color_palette;
+					} else {
+						options.palettes = true;
+					}
+				} else {
+					try {
+						options.palettes = JSON.parse(rawPalette);
+					} catch (e) {
+						options.palettes = rawPalette.split(',').map(function(item) {
+							return item.trim();
+						});
+					}
+				}
+			} else if (window.rlFramework && Array.isArray(window.rlFramework.color_palette) && window.rlFramework.color_palette.length) {
+				options.palettes = window.rlFramework.color_palette;
+			}
+
+			if (typeof $field.wpColorPicker === 'function') {
+				$field.wpColorPicker(options);
+			}
+		});
+	}
+
+	function initColorPaletteFields() {
+		$(document).on('change', '.rl-color-palette-radio', function() {
+			const $radio = $(this);
+			const $item = $radio.closest('.rl-color-palette-item');
+			const $field = $radio.closest('.rl-color-palette-field');
+
+			$field.find('.rl-color-palette-item').removeClass('is-selected');
+			if ($radio.is(':checked')) {
+				$item.addClass('is-selected');
+			}
+
+			$field.trigger('rl_color_palette_change', [$radio.val()]);
+		});
 	}
 
 	function syncDateTimeValue(targetId) {
@@ -174,6 +236,7 @@
 				if (isActive) {
 					openFirstAccordionInPanel(panel);
 					openFirstSidebarInPanel(panel);
+					initColorPickers(panel);
 				}
 			});
 
@@ -1384,6 +1447,7 @@
 		
 		initTooltips();
 		initColorPickers();
+		initColorPaletteFields();
 		initDateTimePickers();
 		initTabs();
 		initSidebarNavigation();

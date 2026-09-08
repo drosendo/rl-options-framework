@@ -91,6 +91,7 @@ The framework provides several filters you can use with `add_filter` to modify i
 | `rl_options_framework_country_reference_ttl` | Change the transient caching TTL (in seconds) for geo endpoints. | `int $ttl`, `RL_Options_Framework $framework` |
 | `rl_options_framework_country_subdivisions` | Filter the subdivisions (states/districts) for a specific country. | `array $out`, `string $country_code`, `RL_Options_Framework $framework` |
 | `rl_options_framework_country_municipalities` | Filter municipalities (cities) for a specific country & subdivision. | `array $out`, `string $country_code`, `string $subdivision`, `RL_Options_Framework $framework` |
+| `rl_options_color_palette` | Filter global default color palette array for color pickers and swatches. | `array $palette`, `array $config` |
 
 ### Global Actions
 
@@ -145,6 +146,7 @@ Use the configuration options to customize how the framework behaves within your
 | `sync_history` | `true`, `false` | Enable tab history sync |
 | `debug_level` | `error`, `warn`, `info`, `debug` | JS/PHP runtime logging level |
 | `swal_fallback` | `true`, `false` | Fallback to `window.alert` when SweetAlert fails |
+| `color_palette` | `array` | Global default hex palette array for color fields and swatches |
 | `use_local_assets_toggle` | `true`, `false` | Show support toggle for framework-owned local/CDN assets |
 | `local_assets_field_id` | `string` | Option key used by local-assets toggle |
 
@@ -206,7 +208,8 @@ add_action('my_project_options_framework_boot', function(RL_Options_Framework $f
 | `text` | `string` | Standard input |
 | `textarea` | `string` | Multi-line input |
 | `number` | `int|float` | Supports `min`, `max`, `step` |
-| `color` | `string` | Hex / rgb / rgba |
+| `color` | `string` | Hex / rgb / rgba (supports palette swatches) |
+| `color_palette` | `string` | Visual color swatch selector |
 | `image` | `string` | URL from media picker |
 | `country` | `string` | ISO2 country code |
 | `state` | `string` | Subdivision code/name key |
@@ -484,6 +487,73 @@ Renders a reset button that deletes and restores defaults **only for the specifi
     'type'            => 'reset_section',
     'button_label'    => __('Reset Section Defaults', 'my-plugin'),
     'confirm_message' => __('Are you sure you want to reset this section?', 'my-plugin'),
+],
+```
+
+### 4.13 `color` field (with palette support)
+
+#### What it is
+
+Renders a WordPress Iris color picker input with support for field-level palettes, framework-level default palettes, and optional alpha channel support.
+
+#### How to use
+
+```php
+// With custom field-level palette swatches
+'primary_color' => [
+    'id'      => 'primary_color',
+    'type'    => 'color',
+    'label'   => __('Primary Brand Color', 'my-plugin'),
+    'default' => '#10b981',
+    'palette' => ['#10b981', '#059669', '#d1fae5', '#0f172a', '#ffffff'],
+],
+
+// Explicitly disable palette swatches
+'custom_color' => [
+    'id'      => 'custom_color',
+    'type'    => 'color',
+    'label'   => __('Custom Color', 'my-plugin'),
+    'default' => '#3b82f6',
+    'palette' => false,
+],
+```
+
+### 4.14 `color_palette` field (visual swatch selector)
+
+#### What it is
+
+Renders a dedicated, accessible visual swatch selector where users can choose a color from a grid of circular or square swatches without opening a color picker spectrum. Features selected checkmark states, smooth hover elevations, tooltip labels via Tippy.js, and optional text labels.
+
+#### How to use
+
+```php
+// Associative array: hex => display label (shown in tooltip / text label)
+'accent_preset' => [
+    'id'         => 'accent_preset',
+    'type'       => 'color_palette',
+    'label'      => __('Theme Accent Color', 'my-plugin'),
+    'desc'       => __('Choose a predefined accent color for your storefront.', 'my-plugin'),
+    'default'    => '#10b981',
+    'options'    => [
+        '#10b981' => __('Emerald', 'my-plugin'),
+        '#3b82f6' => __('Royal Blue', 'my-plugin'),
+        '#8b5cf6' => __('Purple', 'my-plugin'),
+        '#f59e0b' => __('Amber', 'my-plugin'),
+        '#ef4444' => __('Ruby Red', 'my-plugin'),
+        '#0f172a' => __('Dark Slate', 'my-plugin'),
+    ],
+    'shape'      => 'round',   // 'round' (circle) or 'square'
+    'size'       => 'medium',  // 'small', 'medium', 'large'
+    'show_label' => true,      // Display text label beneath each swatch
+],
+
+// Flat array (uses global framework palette if options omitted)
+'quick_theme' => [
+    'id'      => 'quick_theme',
+    'type'    => 'color_palette',
+    'label'   => __('Brand Color', 'my-plugin'),
+    'default' => '#10b981',
+    'options' => ['#10b981', '#059669', '#d1fae5', '#0b1220'],
 ],
 ```
 
@@ -932,8 +1002,17 @@ Every field accepts these properties:
 
 | Property | Type | Default | Description |
 |----------|------|---------|-------------|
-| `palette` | `array` | `[]` | Predefined color palette |
+| `palette` | `array\|bool\|string` | `[]` | Predefined color palette (array of hex colors, `true` for global/default, or `false` to disable) |
 | `alpha` | `bool` | `true` | Allow alpha channel (rgba) |
+
+#### `color_palette`
+
+| Property | Type | Default | Description |
+|----------|------|---------|-------------|
+| `options` | `array` | `[]` | Color swatches map (`['#hex' => 'Label']`, `['#hex1', '#hex2']`, or array of `['value', 'label']`). Falls back to `$config['color_palette']` if empty. |
+| `size` | `string` | `'medium'` | Swatch size: `'small'`, `'medium'`, or `'large'` |
+| `shape` | `string` | `'round'` | Swatch shape: `'round'` (circle) or `'square'` |
+| `show_label` | `bool` | `false` | Display text label below each color swatch |
 
 #### `image` / `image_select`
 
@@ -1404,6 +1483,53 @@ $framework->add_field([
     'depends_on'     => ['subscribe_newsletter'],
     'required_if'    => [
         ['field' => 'subscribe_newsletter', 'operator' => 'equals', 'expected' => true],
+    ],
+]);
+```
+
+### Pattern 4: Brand color palette configuration and swatch selector
+
+```php
+// Step 1: Define global brand palette when initializing framework
+$config = [
+    'option_name'       => 'my_project_options',
+    'form_field_prefix' => 'my_project',
+    'page_slug'         => 'my-project-settings',
+    'color_palette'     => [
+        '#10b981', // Emerald
+        '#059669', // Dark Emerald
+        '#d1fae5', // Pale Emerald
+        '#0f172a', // Slate
+        '#ffffff', // White
+    ],
+];
+
+// Step 2: Use color field with global palette automatically inherited
+$framework->add_field([
+    'tab_id'     => 'styling',
+    'section_id' => 'colors',
+    'id'         => 'primary_color',
+    'type'       => 'color',
+    'label'      => __('Primary Color', 'my-plugin'),
+    'default'    => '#10b981',
+]);
+
+// Step 3: Use color_palette field for 1-click theme presets
+$framework->add_field([
+    'tab_id'     => 'styling',
+    'section_id' => 'colors',
+    'id'         => 'theme_preset',
+    'type'       => 'color_palette',
+    'label'      => __('Theme Preset', 'my-plugin'),
+    'default'    => '#10b981',
+    'size'       => 'medium',
+    'shape'      => 'round',
+    'show_label' => true,
+    'options'    => [
+        '#10b981' => __('Emerald', 'my-plugin'),
+        '#3b82f6' => __('Sapphire', 'my-plugin'),
+        '#8b5cf6' => __('Amethyst', 'my-plugin'),
+        '#0f172a' => __('Obsidian', 'my-plugin'),
     ],
 ]);
 ```

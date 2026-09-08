@@ -224,6 +224,7 @@ class RL_Options_Assets_Service {
 				'swal_fallback' => !empty($config['swal_fallback']),
 				'debug_level' => $this->resolve_debug_level(),
 				'rest_base' => esc_url_raw(rest_url('rl-options/v1/')),
+				'color_palette' => apply_filters('rl_options_color_palette', (array) ($config['color_palette'] ?? []), $config),
 			]
 		);
 	}

@@ -22,6 +22,7 @@ class RL_Field_Bootstrap
 		$registry->register(new RL_Field_Toggle());
 		$registry->register(new RL_Field_Image_Select());
 		$registry->register(new RL_Field_Color());
+		$registry->register(new RL_Field_Color_Palette());
 		$registry->register(new RL_Field_Number());
 		$registry->register(new RL_Field_Date());
 		$registry->register(new RL_Field_Datetime());

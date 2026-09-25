@@ -201,10 +201,22 @@ class RL_Options_Assets_Service {
 		// Enqueue WordPress media uploader
 		wp_enqueue_media();
 
+		// The logger handle is only registered at the `debug` level (see
+		// enqueue_global_assets()). A hard dependency on a handle that may not
+		// exist makes WordPress drop the whole bundle silently - no AJAX save,
+		// no tabs, no conditions, no colour pickers, no media uploader, no inline
+		// validation - so require it only when it is really registered.
+		$framework_deps = ['jquery', 'wp-color-picker', 'jquery-ui-datepicker', 'sweetalert2', 'tippy-js'];
+		$logger_handle  = $config['page_slug'] . '-rl-logger';
+
+		if (wp_script_is($logger_handle, 'registered')) {
+			$framework_deps[] = $logger_handle;
+		}
+
 		wp_enqueue_script(
 			$config['page_slug'] . '-framework',
 			$assets_url . 'js/options-framework.js',
-			['jquery', 'wp-color-picker', 'jquery-ui-datepicker', 'sweetalert2', 'tippy-js', $config['page_slug'] . '-rl-logger'],
+			$framework_deps,
 			$config['version'],
 			true
 		);

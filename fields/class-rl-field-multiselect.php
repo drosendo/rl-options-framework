@@ -47,7 +47,7 @@ class RL_Field_Multiselect implements RL_Field_Interface, RL_Field_Processing_In
 	public function validate(array $field, $value, string &$error, array $context = []): bool
 	{
 		$field_label = $context['field_label'] ?? 'Field';
-		$text_domain = $context['text_domain'] ?? 'default';
+		$text_domain = $context['text_domain'] ?? 'rl-options-framework';
 
 		if ($value === '' || $value === null) {
 			return true;
@@ -61,7 +61,7 @@ class RL_Field_Multiselect implements RL_Field_Interface, RL_Field_Processing_In
 			if (!in_array((string) $item, $allowed, true)) {
 				$error = sprintf(
 					/* translators: %s: field label */
-					__('%s includes an invalid option.', 'smart-variations-images-premium'),
+					__('%s includes an invalid option.', $text_domain),
 					$field_label
 				);
 				return false;

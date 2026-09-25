@@ -342,9 +342,9 @@ class RL_Options_Schema_Manager {
 			$debug_field => [
 				'id'       => $debug_field,
 				'type'     => 'toggle',
-				'label'    => __( 'Enable Debug Mode', 'smart-variations-images-premium' ),
-				'text'     => __( 'Enable debug logging', 'smart-variations-images-premium' ),
-				'desc'     => __( 'Enable verbose debug logging for troubleshooting. Disable on production sites.', 'smart-variations-images-premium' ),
+				'label'    => __( 'Enable Debug Mode', (string) $this->framework->get_config('text_domain', 'rl-options-framework') ),
+				'text'     => __( 'Enable debug logging', (string) $this->framework->get_config('text_domain', 'rl-options-framework') ),
+				'desc'     => __( 'Enable verbose debug logging for troubleshooting. Disable on production sites.', (string) $this->framework->get_config('text_domain', 'rl-options-framework') ),
 				'default'  => false,
 				'priority' => 10,
 			],
@@ -354,9 +354,9 @@ class RL_Options_Schema_Manager {
 			$debug_fields[ $local_assets_field ] = [
 				'id'       => $local_assets_field,
 				'type'     => 'toggle',
-				'label'    => __( 'Use Local Assets', 'smart-variations-images-premium' ),
-				'text'     => __( 'Load options framework libraries locally (GDPR compliant)', 'smart-variations-images-premium' ),
-				'desc'     => __( 'Controls how the RL Options Framework loads its own UI libraries (SweetAlert2, Tippy.js, jQuery UI theme). When enabled, these are served from your server. When disabled, they are loaded from public CDNs. This setting does not affect any other plugin assets.', 'smart-variations-images-premium' ),
+				'label'    => __( 'Use Local Assets', (string) $this->framework->get_config('text_domain', 'rl-options-framework') ),
+				'text'     => __( 'Load options framework libraries locally (GDPR compliant)', (string) $this->framework->get_config('text_domain', 'rl-options-framework') ),
+				'desc'     => __( 'Controls how the RL Options Framework loads its own UI libraries (SweetAlert2, Tippy.js, jQuery UI theme). When enabled, these are served from your server. When disabled, they are loaded from public CDNs. This setting does not affect any other plugin assets.', (string) $this->framework->get_config('text_domain', 'rl-options-framework') ),
 				'default'  => true,
 				'priority' => 20,
 			];
@@ -364,12 +364,12 @@ class RL_Options_Schema_Manager {
 
 		return [
 			'support' => [
-				'label'    => __( 'Support', 'smart-variations-images-premium' ),
+				'label'    => __( 'Support', (string) $this->framework->get_config('text_domain', 'rl-options-framework') ),
 				'priority' => 900,
 				'sections' => [
 					'debug' => [
 						'id'     => 'debug',
-						'title'  => __( 'Debug Settings', 'smart-variations-images-premium' ),
+						'title'  => __( 'Debug Settings', (string) $this->framework->get_config('text_domain', 'rl-options-framework') ),
 						'fields' => $debug_fields,
 					],
 				],

@@ -55,7 +55,7 @@ class RL_Field_State implements RL_Field_Interface, RL_Field_Processing_Interfac
 	public function validate(array $field, $value, string &$error, array $context = []): bool
 	{
 		$field_label = $context['field_label'] ?? 'Field';
-		$text_domain = $context['text_domain'] ?? 'default';
+		$text_domain = $context['text_domain'] ?? 'rl-options-framework';
 
 		if ($value === '' || $value === null) {
 			return true;
@@ -64,14 +64,14 @@ class RL_Field_State implements RL_Field_Interface, RL_Field_Processing_Interfac
 		$geo_callback = $context['geo_options_callback'] ?? null;
 		if (!is_callable($geo_callback)) {
 			/* translators: %s: field label */
-			$error = sprintf(__('%s has an invalid geographic value.', 'smart-variations-images-premium'), $field_label);
+			$error = sprintf(__('%s has an invalid geographic value.', $text_domain), $field_label);
 			return false;
 		}
 
 		$allowed = array_keys(call_user_func($geo_callback, $field, 'state', $context['validation_context'] ?? []));
 		if (!in_array((string) $value, $allowed, true)) {
 			/* translators: %s: field label */
-			$error = sprintf(__('%s has an invalid geographic value.', 'smart-variations-images-premium'), $field_label);
+			$error = sprintf(__('%s has an invalid geographic value.', $text_domain), $field_label);
 			return false;
 		}
 

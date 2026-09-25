@@ -14,8 +14,8 @@ class RL_Field_Import implements RL_Field_Interface, RL_Field_Processing_Interfa
 
 	public function render(array $field, $value, array $context = []): void
 	{
-		$desc = $field['description'] ?? __('Select a previously exported JSON file to import settings.', 'smart-variations-images-premium');
-		$status_msg = $field['status_message'] ?? __('File loaded! Click "Save Changes" below to apply the import.', 'smart-variations-images-premium');
+		$desc = $field['description'] ?? __('Select a previously exported JSON file to import settings.', (string) ($context['text_domain'] ?? 'rl-options-framework'));
+		$status_msg = $field['status_message'] ?? __('File loaded! Click "Save Changes" below to apply the import.', (string) ($context['text_domain'] ?? 'rl-options-framework'));
 
 		if (!empty($desc)) {
 			echo '<p>' . wp_kses_post($desc) . '</p>';

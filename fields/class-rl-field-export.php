@@ -17,8 +17,8 @@ class RL_Field_Export implements RL_Field_Interface
 		$framework = RL_Options_Framework::instance();
 		$json = $framework->export_settings();
 
-		$label = $field['button_label'] ?? __('Download Export File', 'smart-variations-images-premium');
-		$desc = $field['description'] ?? __('Download a complete backup of your current settings as a JSON file.', 'smart-variations-images-premium');
+		$label = $field['button_label'] ?? __('Download Export File', (string) ($context['text_domain'] ?? 'rl-options-framework'));
+		$desc = $field['description'] ?? __('Download a complete backup of your current settings as a JSON file.', (string) ($context['text_domain'] ?? 'rl-options-framework'));
 
 		if (!empty($desc)) {
 			echo '<p>' . wp_kses_post($desc) . '</p>';

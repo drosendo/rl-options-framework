@@ -20,14 +20,14 @@ class RL_Field_Country_State_City implements RL_Field_Interface, RL_Field_Proces
 		}
 		$field_id = (string) ($field['id'] ?? '');
 		$field_name = (string) ($context['field_name'] ?? '');
-		$text_domain = (string) ($context['text_domain'] ?? 'default');
+		$text_domain = (string) ($context['text_domain'] ?? 'rl-options-framework');
 		$group = is_array($value) ? $value : [];
 		$country_val = sanitize_text_field((string) ($group['country'] ?? ($field['default']['country'] ?? '')));
 		$state_val = sanitize_text_field((string) ($group['state'] ?? ($field['default']['state'] ?? '')));
 		$city_val = sanitize_text_field((string) ($group['city'] ?? ($field['default']['city'] ?? '')));
-		$country_label = (string) ($field['country_label'] ?? __('Country', 'smart-variations-images-premium'));
-		$state_label = (string) ($field['state_label'] ?? __('State', 'smart-variations-images-premium'));
-		$city_label = (string) ($field['city_label'] ?? __('City', 'smart-variations-images-premium'));
+		$country_label = (string) ($field['country_label'] ?? __('Country', $text_domain));
+		$state_label = (string) ($field['state_label'] ?? __('State', $text_domain));
+		$city_label = (string) ($field['city_label'] ?? __('City', $text_domain));
 		$countries = call_user_func($geo, $field, 'country', []);
 		$states = call_user_func($geo, array_merge($field, ['country' => $country_val]), 'state', []);
 		$cities = call_user_func($geo, array_merge($field, ['country' => $country_val, 'subdivision' => $state_val]), 'city', []);
@@ -96,7 +96,7 @@ class RL_Field_Country_State_City implements RL_Field_Interface, RL_Field_Proces
 	public function validate(array $field, $value, string &$error, array $context = []): bool
 	{
 		$field_label = $context['field_label'] ?? 'Field';
-		$text_domain = $context['text_domain'] ?? 'default';
+		$text_domain = $context['text_domain'] ?? 'rl-options-framework';
 
 		$group = is_array($value) ? $value : [];
 		$country = sanitize_text_field((string) ($group['country'] ?? ''));
@@ -107,13 +107,13 @@ class RL_Field_Country_State_City implements RL_Field_Interface, RL_Field_Proces
 		$geo_callback = $context['geo_options_callback'] ?? null;
 		if (!is_callable($geo_callback)) {
 			/* translators: %s: field label */
-			$error = sprintf(__('%s has an invalid geographic value.', 'smart-variations-images-premium'), $field_label);
+			$error = sprintf(__('%s has an invalid geographic value.', $text_domain), $field_label);
 			return false;
 		}
 
 		if ($required && $country === '') {
 			/* translators: %s: field label */
-			$error = sprintf(__('%s requires a country selection.', 'smart-variations-images-premium'), $field_label);
+			$error = sprintf(__('%s requires a country selection.', $text_domain), $field_label);
 			return false;
 		}
 
@@ -121,7 +121,7 @@ class RL_Field_Country_State_City implements RL_Field_Interface, RL_Field_Proces
 			$allowed_countries = array_keys(call_user_func($geo_callback, $field, 'country', $context['validation_context'] ?? []));
 			if (!in_array($country, $allowed_countries, true)) {
 				/* translators: %s: field label */
-				$error = sprintf(__('%s has an invalid country.', 'smart-variations-images-premium'), $field_label);
+				$error = sprintf(__('%s has an invalid country.', $text_domain), $field_label);
 				return false;
 			}
 		}
@@ -130,7 +130,7 @@ class RL_Field_Country_State_City implements RL_Field_Interface, RL_Field_Proces
 			$allowed_states = array_keys(call_user_func($geo_callback, array_merge($field, ['country' => $country]), 'state', $context['validation_context'] ?? []));
 			if (!in_array($state, $allowed_states, true)) {
 				/* translators: %s: field label */
-				$error = sprintf(__('%s has an invalid state/district.', 'smart-variations-images-premium'), $field_label);
+				$error = sprintf(__('%s has an invalid state/district.', $text_domain), $field_label);
 				return false;
 			}
 		}
@@ -139,7 +139,7 @@ class RL_Field_Country_State_City implements RL_Field_Interface, RL_Field_Proces
 			$allowed_cities = array_keys(call_user_func($geo_callback, array_merge($field, ['country' => $country, 'subdivision' => $state]), 'city', $context['validation_context'] ?? []));
 			if (!in_array($city, $allowed_cities, true)) {
 				/* translators: %s: field label */
-				$error = sprintf(__('%s has an invalid city/municipality.', 'smart-variations-images-premium'), $field_label);
+				$error = sprintf(__('%s has an invalid city/municipality.', $text_domain), $field_label);
 				return false;
 			}
 		}

@@ -105,14 +105,14 @@ class RL_Options_Storage_Service {
 		if ( json_last_error() !== JSON_ERROR_NONE ) {
 			return new WP_Error(
 				'invalid_json',
-				__( 'Invalid JSON format.', 'smart-variations-images-premium' )
+				__( 'Invalid JSON format.', (string) $this->framework->get_config('text_domain', 'rl-options-framework') )
 			);
 		}
 
 		if ( ! isset( $data['settings'] ) || ! is_array( $data['settings'] ) ) {
 			return new WP_Error(
 				'invalid_format',
-				__( 'Invalid settings format.', 'smart-variations-images-premium' )
+				__( 'Invalid settings format.', (string) $this->framework->get_config('text_domain', 'rl-options-framework') )
 			);
 		}
 
@@ -128,7 +128,7 @@ class RL_Options_Storage_Service {
 		if ( empty( $input ) && ! empty( $raw_settings ) ) {
 			return new WP_Error(
 				'invalid_settings_payload',
-				__( 'Imported settings do not contain any recognized framework fields.', 'smart-variations-images-premium' )
+				__( 'Imported settings do not contain any recognized framework fields.', (string) $this->framework->get_config('text_domain', 'rl-options-framework') )
 			);
 		}
 
@@ -149,7 +149,7 @@ class RL_Options_Storage_Service {
 					? $error
 					: sprintf(
 						/* translators: %s: field label */
-						__( 'Invalid value for %s.', 'smart-variations-images-premium' ),
+						__( 'Invalid value for %s.', (string) $this->framework->get_config('text_domain', 'rl-options-framework') ),
 						$this->framework->get_field_label( $field )
 					);
 				continue;

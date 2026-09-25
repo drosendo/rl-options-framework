@@ -69,7 +69,7 @@ class RL_Field_Color implements RL_Field_Interface, RL_Field_Processing_Interfac
 	public function validate(array $field, $value, string &$error, array $context = []): bool
 	{
 		$field_label = $context['field_label'] ?? 'Field';
-		$text_domain = $context['text_domain'] ?? 'default';
+		$text_domain = $context['text_domain'] ?? 'rl-options-framework';
 
 		if ($value === '' || $value === null) {
 			return true;
@@ -86,7 +86,7 @@ class RL_Field_Color implements RL_Field_Interface, RL_Field_Processing_Interfac
 
 		$error = sprintf(
 			/* translators: %s: field label */
-			__('%s must be a valid hex color.', 'smart-variations-images-premium'),
+			__('%s must be a valid hex color.', $text_domain),
 			$field_label
 		);
 		return false;

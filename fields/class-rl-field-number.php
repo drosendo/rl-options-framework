@@ -47,12 +47,12 @@ class RL_Field_Number implements RL_Field_Interface, RL_Field_Processing_Interfa
 	public function validate(array $field, $value, string &$error, array $context = []): bool
 	{
 		$field_label = $context['field_label'] ?? 'Field';
-		$text_domain = $context['text_domain'] ?? 'default';
+		$text_domain = $context['text_domain'] ?? 'rl-options-framework';
 
 		if (!is_numeric($value)) {
 			$error = sprintf(
 				/* translators: %s: field label */
-				__('%s must be a valid number.', 'smart-variations-images-premium'),
+				__('%s must be a valid number.', $text_domain),
 				$field_label
 			);
 			return false;
@@ -61,7 +61,7 @@ class RL_Field_Number implements RL_Field_Interface, RL_Field_Processing_Interfa
 		if (isset($field['min']) && $value < $field['min']) {
 			$error = sprintf(
 				/* translators: 1: field label, 2: min value */
-				__('%1$s must be at least %2$s.', 'smart-variations-images-premium'),
+				__('%1$s must be at least %2$s.', $text_domain),
 				$field_label,
 				$field['min']
 			);
@@ -71,7 +71,7 @@ class RL_Field_Number implements RL_Field_Interface, RL_Field_Processing_Interfa
 		if (isset($field['max']) && $value > $field['max']) {
 			$error = sprintf(
 				/* translators: 1: field label, 2: max value */
-				__('%1$s must be no more than %2$s.', 'smart-variations-images-premium'),
+				__('%1$s must be no more than %2$s.', $text_domain),
 				$field_label,
 				$field['max']
 			);

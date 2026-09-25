@@ -66,7 +66,7 @@ class RL_Field_Color_Palette implements RL_Field_Interface, RL_Field_Processing_
 		$current    = (string) ($value ?? ($field['default'] ?? ''));
 
 		if (empty($options)) {
-			echo '<p class="description">' . esc_html__('No color palette options configured.', 'smart-variations-images-premium') . '</p>';
+			echo '<p class="description">' . esc_html__('No color palette options configured.', (string) ($context['text_domain'] ?? 'rl-options-framework')) . '</p>';
 			return;
 		}
 
@@ -195,7 +195,7 @@ class RL_Field_Color_Palette implements RL_Field_Interface, RL_Field_Processing_
 			if (!$matched) {
 				$error = sprintf(
 					/* translators: %s: field label */
-					__('%s has an invalid color selected.', 'smart-variations-images-premium'),
+					__('%s has an invalid color selected.', (string) ($context['text_domain'] ?? 'rl-options-framework')),
 					$field_label
 				);
 				return false;
@@ -211,7 +211,7 @@ class RL_Field_Color_Palette implements RL_Field_Interface, RL_Field_Processing_
 
 		$error = sprintf(
 			/* translators: %s: field label */
-			__('%s must be a valid color.', 'smart-variations-images-premium'),
+			__('%s must be a valid color.', (string) ($context['text_domain'] ?? 'rl-options-framework')),
 			$field_label
 		);
 		return false;

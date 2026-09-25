@@ -14,9 +14,9 @@ class RL_Field_Reset implements RL_Field_Interface, RL_Field_Processing_Interfac
 
 	public function render(array $field, $value, array $context = []): void
 	{
-		$label = $field['button_label'] ?? __('Reset All Settings', 'smart-variations-images-premium');
-		$desc = $field['description'] ?? __('This will permanently delete all settings and restore the default configuration. This cannot be undone.', 'smart-variations-images-premium');
-		$confirm_msg = $field['confirm_message'] ?? __('Are you sure you want to reset ALL settings to their defaults? This cannot be undone.', 'smart-variations-images-premium');
+		$label = $field['button_label'] ?? __('Reset All Settings', (string) ($context['text_domain'] ?? 'rl-options-framework'));
+		$desc = $field['description'] ?? __('This will permanently delete all settings and restore the default configuration. This cannot be undone.', (string) ($context['text_domain'] ?? 'rl-options-framework'));
+		$confirm_msg = $field['confirm_message'] ?? __('Are you sure you want to reset ALL settings to their defaults? This cannot be undone.', (string) ($context['text_domain'] ?? 'rl-options-framework'));
 
 		if (!empty($desc)) {
 			echo '<p>' . wp_kses_post($desc) . '</p>';

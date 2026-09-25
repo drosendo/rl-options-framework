@@ -40,7 +40,7 @@ class RL_Field_Select implements RL_Field_Interface, RL_Field_Processing_Interfa
 	public function validate(array $field, $value, string &$error, array $context = []): bool
 	{
 		$field_label = $context['field_label'] ?? 'Field';
-		$text_domain = $context['text_domain'] ?? 'default';
+		$text_domain = $context['text_domain'] ?? 'rl-options-framework';
 
 		if ($value === '' || $value === null) {
 			return true;
@@ -52,7 +52,7 @@ class RL_Field_Select implements RL_Field_Interface, RL_Field_Processing_Interfa
 		if (!in_array((string) $value, $allowed, true)) {
 			$error = sprintf(
 				/* translators: %s: field label */
-				__('%s has an invalid option selected.', 'smart-variations-images-premium'),
+				__('%s has an invalid option selected.', $text_domain),
 				$field_label
 			);
 			return false;

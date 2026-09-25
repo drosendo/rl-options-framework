@@ -65,10 +65,10 @@ class RL_Options_Render_Service
 
 			<?php if (empty($tabs)): ?>
 				<div class="notice notice-warning">
-					<p><?php esc_html_e('No settings tabs have been registered yet.', 'smart-variations-images-premium'); ?></p>
+					<p><?php esc_html_e('No settings tabs have been registered yet.', (string) $this->framework->get_config('text_domain', 'rl-options-framework')); ?></p>
 					<p><?php 
 						/* translators: %s: filter name */
-						printf(esc_html__('Use the %s filter to add settings tabs.', 'smart-variations-images-premium'), '<code>' . esc_html($this->framework->config['option_name'] . '_framework_tabs') . '</code>'); 
+						printf(esc_html__('Use the %s filter to add settings tabs.', (string) $this->framework->get_config('text_domain', 'rl-options-framework')), '<code>' . esc_html($this->framework->config['option_name'] . '_framework_tabs') . '</code>'); 
 					?></p>
 					</p>
 				</div>
@@ -128,7 +128,7 @@ class RL_Options_Render_Service
 
 				<div class="rl-submit-bar">
 					<button type="submit" class="button button-primary">
-						<?php esc_html_e('Save changes', 'smart-variations-images-premium'); ?>
+						<?php esc_html_e('Save changes', (string) $this->framework->get_config('text_domain', 'rl-options-framework')); ?>
 					</button>
 				</div>
 			</form>
@@ -243,7 +243,7 @@ class RL_Options_Render_Service
 	private function render_section_inner(array $section, array $options): void
 	{
 		if (empty($section['fields'])) {
-			echo '<p class="description">' . esc_html__('No settings available for this section yet.', 'smart-variations-images-premium') . '</p>';
+			echo '<p class="description">' . esc_html__('No settings available for this section yet.', (string) $this->framework->get_config('text_domain', 'rl-options-framework')) . '</p>';
 			return;
 		}
 

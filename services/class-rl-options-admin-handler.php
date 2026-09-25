@@ -45,7 +45,7 @@ class RL_Options_Admin_Handler {
 
 		if ( ! current_user_can( $this->framework->get_config( 'capability' ) ) ) {
 			RL_Logger::error( 'User does not have required capability.', [ 'capability' => $this->framework->get_config( 'capability' ) ] );
-			wp_die( esc_html__( 'You are not allowed to manage these settings.', 'smart-variations-images-premium' ) );
+			wp_die( esc_html__( 'You are not allowed to manage these settings.', (string) $this->framework->get_config('text_domain', 'rl-options-framework') ) );
 		}
 
 		$nonce_action = $this->framework->get_config( 'page_slug' ) . '_save_options';
@@ -218,7 +218,7 @@ class RL_Options_Admin_Handler {
 		if ( ! $ajax_nonce_valid && ! $form_nonce_valid ) {
 			wp_send_json_error(
 				[
-					'message' => __( 'Security check failed. Please refresh the page and try again.', 'smart-variations-images-premium' ),
+					'message' => __( 'Security check failed. Please refresh the page and try again.', (string) $this->framework->get_config('text_domain', 'rl-options-framework') ),
 				],
 				403
 			);
@@ -228,7 +228,7 @@ class RL_Options_Admin_Handler {
 		if ( ! current_user_can( $this->framework->get_config( 'capability' ) ) ) {
 			wp_send_json_error(
 				[
-					'message' => __( 'You are not allowed to manage these settings.', 'smart-variations-images-premium' ),
+					'message' => __( 'You are not allowed to manage these settings.', (string) $this->framework->get_config('text_domain', 'rl-options-framework') ),
 				]
 			);
 		}
@@ -260,7 +260,7 @@ class RL_Options_Admin_Handler {
 
 			wp_send_json_success(
 				[
-					'message' => __( 'Settings imported successfully. The page will reload.', 'smart-variations-images-premium' ),
+					'message' => __( 'Settings imported successfully. The page will reload.', (string) $this->framework->get_config('text_domain', 'rl-options-framework') ),
 					'imported' => true,
 				]
 			);
@@ -277,7 +277,7 @@ class RL_Options_Admin_Handler {
 
 			wp_send_json_success(
 				[
-					'message' => __( 'Settings reset successfully. The page will reload.', 'smart-variations-images-premium' ),
+					'message' => __( 'Settings reset successfully. The page will reload.', (string) $this->framework->get_config('text_domain', 'rl-options-framework') ),
 					'imported' => true, // We can reuse the `imported` flag to trigger the page reload in JS
 				]
 			);
@@ -297,7 +297,7 @@ class RL_Options_Admin_Handler {
 
 				wp_send_json_success(
 					[
-						'message' => __( 'Section settings reset successfully. The page will reload.', 'smart-variations-images-premium' ),
+						'message' => __( 'Section settings reset successfully. The page will reload.', (string) $this->framework->get_config('text_domain', 'rl-options-framework') ),
 						'imported' => true, // Reusing `imported` flag to trigger page reload
 					]
 				);
@@ -393,7 +393,7 @@ class RL_Options_Admin_Handler {
 
 		wp_send_json_success(
 			[
-				'message' => __( 'Settings saved successfully.', 'smart-variations-images-premium' ),
+				'message' => __( 'Settings saved successfully.', (string) $this->framework->get_config('text_domain', 'rl-options-framework') ),
 				'saved'   => count( $saved ),
 			]
 		);
@@ -409,14 +409,14 @@ class RL_Options_Admin_Handler {
 		$nonce = isset( $_POST['nonce'] ) ? sanitize_text_field( wp_unslash( $_POST['nonce'] ) ) : '';
 		if ( empty( $nonce ) || ! wp_verify_nonce( $nonce, $this->framework->get_config( 'ajax_action' ) . '_nonce' ) ) {
 			wp_send_json_error(
-				[ 'message' => __( 'Security check failed.', 'smart-variations-images-premium' ) ],
+				[ 'message' => __( 'Security check failed.', (string) $this->framework->get_config('text_domain', 'rl-options-framework') ) ],
 				403
 			);
 		}
 
 		if ( ! current_user_can( $this->framework->get_config( 'capability' ) ) ) {
 			wp_send_json_error(
-				[ 'message' => __( 'You are not allowed to perform this action.', 'smart-variations-images-premium' ) ],
+				[ 'message' => __( 'You are not allowed to perform this action.', (string) $this->framework->get_config('text_domain', 'rl-options-framework') ) ],
 				403
 			);
 		}
@@ -430,7 +430,7 @@ class RL_Options_Admin_Handler {
 		$fields_map = $this->framework->get_fields_index();
 		if ( $field_id === '' || empty( $fields_map[ $field_id ] ) ) {
 			wp_send_json_error(
-				[ 'message' => __( 'Unknown field.', 'smart-variations-images-premium' ) ],
+				[ 'message' => __( 'Unknown field.', (string) $this->framework->get_config('text_domain', 'rl-options-framework') ) ],
 				400
 			);
 		}
@@ -456,14 +456,14 @@ class RL_Options_Admin_Handler {
 		$nonce = isset( $_POST['nonce'] ) ? sanitize_text_field( wp_unslash( $_POST['nonce'] ) ) : '';
 		if ( empty( $nonce ) || ! wp_verify_nonce( $nonce, $this->framework->get_config( 'ajax_action' ) . '_nonce' ) ) {
 			wp_send_json_error(
-				[ 'message' => __( 'Security check failed.', 'smart-variations-images-premium' ) ],
+				[ 'message' => __( 'Security check failed.', (string) $this->framework->get_config('text_domain', 'rl-options-framework') ) ],
 				403
 			);
 		}
 
 		if ( ! current_user_can( $this->framework->get_config( 'capability' ) ) ) {
 			wp_send_json_error(
-				[ 'message' => __( 'You are not allowed to perform this action.', 'smart-variations-images-premium' ) ],
+				[ 'message' => __( 'You are not allowed to perform this action.', (string) $this->framework->get_config('text_domain', 'rl-options-framework') ) ],
 				403
 			);
 		}
@@ -477,7 +477,7 @@ class RL_Options_Admin_Handler {
 		$fields_map = $this->framework->get_fields_index();
 		if ( $field_id === '' || empty( $fields_map[ $field_id ] ) ) {
 			wp_send_json_error(
-				[ 'message' => __( 'Unknown field.', 'smart-variations-images-premium' ) ],
+				[ 'message' => __( 'Unknown field.', (string) $this->framework->get_config('text_domain', 'rl-options-framework') ) ],
 				400
 			);
 		}

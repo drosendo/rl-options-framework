@@ -28,8 +28,8 @@ class RL_Field_Reset_Section implements RL_Field_Interface, RL_Field_Processing_
 	 */
 	public function render(array $field, $value, array $context = []): void
 	{
-		$label = $field['button_label'] ?? __('Reset Section Settings', 'smart-variations-images-premium');
-		$confirm_msg = $field['confirm_message'] ?? __('Are you sure you want to reset all settings in this section to their defaults? This cannot be undone.', 'smart-variations-images-premium');
+		$label = $field['button_label'] ?? __('Reset Section Settings', (string) ($context['text_domain'] ?? 'rl-options-framework'));
+		$confirm_msg = $field['confirm_message'] ?? __('Are you sure you want to reset all settings in this section to their defaults? This cannot be undone.', (string) ($context['text_domain'] ?? 'rl-options-framework'));
 
 		$framework = RL_Options_Framework::instance();
 		$reset_input_name = $framework->get_config('form_field_prefix') . '_reset_section';

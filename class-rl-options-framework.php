@@ -605,7 +605,7 @@ final class RL_Options_Framework
 		if (isset($_GET[$message_param]) && 'saved' === $_GET[$message_param]) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 			printf(
 				'<div class="notice notice-success is-dismissible"><p>%s</p></div>',
-				esc_html__('Settings saved.', 'smart-variations-images-premium')
+				esc_html__('Settings saved.', (string) ($this->config['text_domain'] ?? 'rl-options-framework'))
 			);
 		}
 

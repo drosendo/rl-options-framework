@@ -19,7 +19,7 @@
  * autoload + a manual require coexisting in the same project).
  *
  * @package RL_Options_Framework
- * @version 2.2.0
+ * @version 2.3.0
  */
 
 if ( ! defined( 'ABSPATH' ) ) {

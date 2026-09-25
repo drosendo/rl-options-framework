@@ -550,7 +550,7 @@ Show or hide any field, section, or tab based on another field's value.
 | `text_domain` | `string` | `'rl-options-framework'` | i18n text domain |
 | `ajax_action` | `string` | `'rl_save_options_ajax'` | AJAX action name |
 | `assets_url` | `string` | Auto-detected | URL to the `assets/` folder |
-| `version` | `string` | `'2.2.0'` | For cache-busting enqueued assets |
+| `version` | `string` | `'2.3.0'` | For cache-busting enqueued assets |
 
 ---
 
@@ -641,6 +641,14 @@ Developed by **[David Rosendo](https://github.com/drosendo)** · a **[RosendoLab
 ---
 
 ## 📦 Changelog
+
+### 2.3.0
+- Added `reset_section` field type (a section-scoped reset action)
+- Added native palette support to the `color` field plus the new `color_palette` swatch selector
+- Converted layout CSS to logical properties for full RTL support
+- Fixed condition evaluation for fields missing from the option set, and the grid layout for fields without labels
+- Fixed the settings bundle being dropped entirely when the optional `-rl-logger` handle was not registered (non-debug levels): it was a hard enqueue dependency, so the logger is now required only when it is actually registered
+- Fixed the text domain: 78 strings across 26 files hardcoded `smart-variations-images-premium`; framework strings now translate with the configured `text_domain` (falling back to `rl-options-framework`)
 
 ### 2.2.0
 - Added nested `AND` / `OR` condition groups for fields, sections and tabs

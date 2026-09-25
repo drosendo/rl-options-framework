@@ -255,7 +255,7 @@ final class RL_Options_Framework
 			'ajax_action'       => 'rl_save_options_ajax',
 			'assets_url'        => '',
 			'plugin_url'        => '',
-			'version'           => '2.1.0',
+			'version'           => '2.3.0',
 			'context'           => 'auto', // auto|plugin|theme
 			'register_menu'     => true,
 			'sync_history'      => false,

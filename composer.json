@@ -4,7 +4,7 @@
     "keywords": ["wordpress", "options", "settings", "admin", "framework", "plugin"],
     "type": "library",
     "license": "GPL-2.0-or-later",
-    "version": "2.2.0",
+    "version": "2.3.0",
     "authors": [
         {
             "name": "Rosendo Labs",
